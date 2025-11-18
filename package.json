@@ -1,0 +1,10 @@
+{
+  "name": "interactive-capability-demo",
+  "version": "0.1.0",
+  "description": "Minimal demo for process capability (Cp/Cpk) with interactive Normal curve",
+  "scripts": {
+    "test": "node tests/test_stats.js"
+  },
+  "author": "",
+  "license": "MIT"
+}
