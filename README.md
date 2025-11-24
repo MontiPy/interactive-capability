@@ -1,55 +1,195 @@
-This project is a small interactive webpage that demonstrates process capability calculations. The UI lets you change mean and standard deviation and shows a Normal distribution curve with user-specifiable LSL and USL.
+# Interactive Process Capability Calculator
 
-Key features
-------------
+A modern, interactive web application for exploring process capability (Cp/Cpk) calculations. Built with React, TypeScript, and Material-UI, featuring real-time statistical analysis, data import, and scenario comparison.
 
-- Interactive controls for mean, std (each with slider + numeric input).
-- LSL and USL can be edited via numeric inputs and synchronized sliders.
-- Display controls: editable display min/max, tick-step, tick format, show/hide grid.
-- Fit-to-mean mode (mean ± N·σ) with a configurable multiplier.
-- Responsive canvas with devicePixelRatio scaling and a secondary top axis that marks ±1σ..±6σ.
-- Cp, Cpk and percent-outside/above/below are computed and displayed live.
+![Process Capability Demo](screenshot.png)
 
-Try the demo locally
---------------------
+## Features
 
-The repository is a dependency-free static demo. To run it locally you can use a simple static server. From the repository root run one of these (PowerShell examples):
+### Core Capabilities
+- **Real-time Statistical Analysis**: Calculate Cp, Cpk, Pp, Ppk, DPMO, Sigma Level, and Cpm (Taguchi index)
+- **Interactive Normal Distribution Chart**: Visualize your process with a canvas-based chart featuring:
+  - Draggable specification limits (LSL/USL)
+  - Shaded in-spec and out-of-spec regions
+  - Secondary sigma axis (±1σ to ±6σ markers)
+  - High-DPI rendering support
 
-```powershell
-# with Python 3 (built-in)
-python -m http.server 8000
+### Data Analysis
+- **Real Data Import**:
+  - Paste comma/newline-separated measurement values
+  - Upload CSV or text files
+  - Automatic histogram generation overlaid on theoretical distribution
+- **Multiple Scenario Comparison**: Compare up to 9 different distributions side-by-side
+- **Advanced Metrics**: View detailed capability metrics including process performance indices
 
-# or with npm's `serve` package if you prefer
-npx serve .
+### Usability
+- **Preset Configurations**: Quickly load common scenarios (Six Sigma, Tight Tolerance, Off-Center, etc.)
+- **Export Capabilities**: Export charts as PNG (high-resolution)
+- **URL State Management**: Share configurations via URL parameters
+- **Responsive Design**: Two-column layout with controls on left and chart on right
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18 or higher
+- npm or yarn
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/interactive-capability.git
+cd interactive-capability
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
 
-Then open http://localhost:8000 in your browser and the demo `index.html` will load.
+The application will open at `http://localhost:3000`.
 
-Files of interest
------------------
+### Building for Production
 
-- `index.html` — UI and input controls. Defaults: mean=0, std=1, LSL=-3.0, USL=3.0.
-- `app.js` — input wiring, `computeStats` usage, and `renderPlot` (canvas renderer). Key functions: `bindPair`, `updateAll`, `renderPlot`.
-- `stats.js` — standalone computation module exporting `computeStats` (usable in browser and Node).
-- `styles.css` — minimal styling for controls and layout.
-- `tests/test_stats.js` and `package.json` — Node test harness and test script (`npm test`).
+```bash
+npm run build
+npm run preview
+```
 
-Running tests
--------------
+The production build will be in the `dist/` directory.
 
-Node-based unit tests for the core `computeStats` function were added. To run them:
+## Usage
 
-```powershell
+### Basic Operation
+
+1. **Adjust Distribution Parameters**:
+   - Use sliders or input fields to set Mean (μ) and Standard Deviation (σ)
+   - Values update in real-time on the chart
+
+2. **Set Specification Limits**:
+   - Enter LSL (Lower Spec Limit) and USL (Upper Spec Limit)
+   - Or drag the red dashed lines directly on the chart
+
+3. **View Capability Metrics**:
+   - Cp and Cpk are color-coded (green ≥ 1.33, orange ≥ 1.0, red < 1.0)
+   - Click "View Advanced Stats" for Pp, Ppk, DPMO, and Sigma Level
+
+### Importing Real Data
+
+1. Click "Import Data" at the bottom of the page
+2. Choose either:
+   - **Paste Data**: Copy-paste your measurements
+   - **Upload File**: Select a CSV or text file
+3. The app will calculate mean/std and overlay a histogram on the chart
+
+### Comparing Scenarios
+
+1. Scroll to "Comparison Mode" section
+2. Click "Add Scenario"
+3. Configure the scenario's mean, std, LSL, and USL
+4. Toggle visibility using the eye icon
+5. Each scenario is rendered with a different color
+
+### Using Presets
+
+Click "Load Preset" in the top-right to quickly load common configurations:
+- **Six Sigma**: Centered process with Cp = 2.0
+- **Tight Tolerance**: Narrow spec limits
+- **Off-Center**: Process shifted off target
+- **Minimum Capability**: Barely capable (Cpk ≈ 1.0)
+- **Wide Tolerance**: Very capable process
+
+### Exporting Charts
+
+Click the floating download button (bottom-right) to export the chart as a high-resolution PNG image.
+
+## Development
+
+### Project Structure
+
+```
+src/
+├── main.tsx                    # App entry point
+├── App.tsx                     # Main layout
+├── theme.ts                    # MUI theme
+├── types.ts                    # TypeScript definitions
+├── context/
+│   └── AppContext.tsx          # State management
+├── components/                 # React components
+│   ├── Chart.tsx
+│   ├── DistributionControls.tsx
+│   ├── SpecLimitControls.tsx
+│   └── ...
+└── utils/
+    ├── stats.ts                # Statistical calculations
+    ├── rendering.ts            # Canvas rendering
+    └── presets.ts              # Preset configurations
+```
+
+### Testing
+
+```bash
+# Run tests
 npm test
+
+# Run tests with UI
+npm test:ui
+
+# Run linter
+npm run lint
 ```
 
-This executes `tests/test_stats.js` which validates Cp/Cpk and percentages, including edge cases (std=0, inverted limits). The code uses an erf-based CDF approximation in `stats.js` suitable for the demo.
+### Contributing
 
-Notes and next steps
---------------------
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-- The `stats.js` module is the canonical place for numeric/statistical logic; when changing Cp/Cpk or distribution calculations, update tests in `tests/test_stats.js`.
-- If you want higher precision for tail probabilities, we can substitute a small numeric library (e.g., jstat) and update tests accordingly.
-- If you'd like CI, I can add a GitHub Actions workflow that runs `npm test` on PRs.
+## Statistical Background
 
-If you'd like the app migrated to React/TypeScript, or want additional test coverage or visual regression tests, tell me which direction and I'll scaffold it.
+### Capability Indices
+
+- **Cp (Process Capability)**: Measures the potential capability of a process
+  - Cp = (USL - LSL) / (6σ)
+  - Does not account for process centering
+
+- **Cpk (Process Capability Index)**: Measures actual capability considering centering
+  - Cpk = min[(USL - μ)/(3σ), (μ - LSL)/(3σ)]
+  - Accounts for process mean relative to spec limits
+
+- **Pp / Ppk (Process Performance)**: Similar to Cp/Cpk but uses sample standard deviation
+  - Better for smaller sample sizes or unstable processes
+
+- **Cpm (Taguchi Index)**: Considers deviation from target value
+  - Cpm = (USL - LSL) / [6√(σ² + (μ - T)²)]
+  - Penalizes deviation from target even if within spec
+
+### Interpretation Guidelines
+
+| Index Value | Interpretation |
+|------------|----------------|
+| ≥ 1.33 | Good - Process is capable |
+| 1.0 - 1.33 | Marginal - May need improvement |
+| < 1.0 | Poor - Process not capable |
+
+### Six Sigma Metrics
+
+- **DPMO (Defects Per Million Opportunities)**: Expected defect rate per million units
+- **Sigma Level**: Process capability expressed in sigma units (higher is better)
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Acknowledgments
+
+- Statistical formulas based on standard SPC literature
+- Error function approximation from Abramowitz and Stegun
+- UI design inspired by modern data visualization tools
+
+## Support
+
+For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/yourusername/interactive-capability).

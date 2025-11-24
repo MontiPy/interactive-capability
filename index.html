@@ -1,109 +1,13 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Interactive Process Capability (Cp / Cpk)</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="stats.js" defer></script>
-  <script src="app.js" defer></script>
-</head>
-<body>
-  <main>
-    <h1>Process capability playground</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interactive Process Capability (Cp / Cpk)</title>
+  </head>
 
-    <section class="controls">
-      <fieldset>
-        <legend>Distribution</legend>
-        <p class="helper">Shift the mean (&mu;) and spread (&sigma;) to see their impact.</p>
-        <label>Mean (&mu;):
-          <input id="mean" type="range" min="-10" max="10" step="0.1" value="0"/>
-          <input id="mean-num" type="number" step="0.01" value="0"/>
-        </label>
-        <output id="mean-val" class="inline-output">0</output>
-
-        <label>Std dev (&sigma;):
-          <input id="std" type="range" min="0.01" max="5" step="0.01" value="1"/>
-          <input id="std-num" type="number" step="0.01" value="1"/>
-        </label>
-        <output id="std-val" class="inline-output">1</output>
-      </fieldset>
-
-      <fieldset>
-        <legend>Spec limits</legend>
-        <p class="helper">Drag the sliders or enter exact LSL/USL values.</p>
-        <label>LSL:
-          <input id="lsl" type="number" step="0.1" value="-3.0"/>
-          <input id="lsl-slider" type="range" min="-10" max="10" step="0.1" value="-3.0"/>
-        </label>
-        <label>USL:
-          <input id="usl" type="number" step="0.1" value="3.0"/>
-          <input id="usl-slider" type="range" min="-10" max="10" step="0.1" value="3.0"/>
-        </label>
-      </fieldset>
-
-      <fieldset>
-        <legend>Chart display</legend>
-        <p class="helper">Control the viewport and axis formatting. Leave tick step blank for auto spacing.</p>
-        <label>Display min: <input id="display-min" type="number" step="0.5" value="-6"/></label>
-        <label>Display max: <input id="display-max" type="number" step="0.5" value="6"/></label>
-        <label>Tick step:
-          <input id="tick-step" type="number" step="0.1" placeholder="auto" />
-        </label>
-        <label>Tick format:
-          <select id="tick-format">
-            <option value="auto">Auto</option>
-            <option value="1">1 dp</option>
-            <option value="2">2 dp</option>
-            <option value="int">Integer</option>
-          </select>
-        </label>
-        <label class="checkbox"><input id="show-grid" type="checkbox" checked/> Show grid</label>
-        <div class="fit-row">
-          <label class="checkbox"><input id="fit-toggle" type="checkbox"/> Fit to mean &plusmn; N&sigma;</label>
-          <label>Fit N: <input id="fit-mult" type="number" step="0.5" value="4" min="0.5"/></label>
-        </div>
-        <button id="reset-display" type="button">Reset display</button>
-      </fieldset>
-    </section>
-
-    <div id="validation-message" class="validation-message" role="alert" aria-live="polite" hidden></div>
-
-    <section class="canvas-wrap">
-      <canvas id="plot" width="700" height="300"></canvas>
-      <div id="canvas-overlay" class="canvas-overlay" aria-hidden="true" hidden></div>
-    </section>
-
-    <section class="stats">
-      <div class="stat-card">
-        <span class="stat-label">Cp</span>
-        <span id="cp" class="stat-value">&mdash;</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Cpk</span>
-        <span id="cpk" class="stat-value">&mdash;</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">% outside</span>
-        <span id="pct-out" class="stat-value">&mdash;</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">% inside</span>
-        <span id="pct-in" class="stat-value">&mdash;</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">% above</span>
-        <span id="pct-above" class="stat-value">&mdash;</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">% below</span>
-        <span id="pct-below" class="stat-value">&mdash;</span>
-      </div>
-    </section>
-
-    <footer>
-      <p>Values update live. This demo is intentionally dependency-free (plain JS).</p>
-    </footer>
-  </main>
-</body>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
