@@ -289,15 +289,14 @@ export function renderPlot(
     ctx.fillText(`σ=${std.toFixed(2)}`, w - 10, 8);
   }
 
-  // Draw LSL/USL lines with z-scores and percentages (only for primary distribution)
-  ctx.strokeStyle = '#d62728';
-  ctx.setLineDash([4, 4]);
-
-  // Calculate z-scores and percentages (only if showing primary)
-  let zLSL = 0, zUSL = 0, pctBelowLSL = 0, pctAboveUSL = 0;
+  // Draw primary LSL/USL lines with z-scores and percentages (only in single distribution mode)
   if (showPrimary) {
-    zLSL = (lsl - mean) / std;
-    zUSL = (usl - mean) / std;
+    ctx.strokeStyle = '#d62728';
+    ctx.setLineDash([4, 4]);
+
+    // Calculate z-scores and percentages
+    const zLSL = (lsl - mean) / std;
+    const zUSL = (usl - mean) / std;
 
     // Import phi function for percentage calculations
     const phi = (z: number) => 0.5 * (1 + erf(z / Math.SQRT2));
@@ -315,55 +314,95 @@ export function renderPlot(
       return sign * y;
     };
 
-    pctBelowLSL = phi(zLSL) * 100;
-    pctAboveUSL = (1 - phi(zUSL)) * 100;
-  }
+    const pctBelowLSL = phi(zLSL) * 100;
+    const pctAboveUSL = (1 - phi(zUSL)) * 100;
 
-  // Draw LSL
-  if (lsl >= displayMin && lsl <= displayMax) {
-    const px = xToPx(lsl);
-    ctx.beginPath();
-    ctx.moveTo(px, 0);
-    ctx.lineTo(px, baselineY);
-    ctx.stroke();
+    // Draw LSL
+    if (lsl >= displayMin && lsl <= displayMax) {
+      const px = xToPx(lsl);
+      ctx.beginPath();
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, baselineY);
+      ctx.stroke();
 
-    ctx.fillStyle = '#d62728';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(`LSL: ${lsl.toFixed(2)}`, px, baselineY - (h - 80) - 24);
+      ctx.fillStyle = '#d62728';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`LSL: ${lsl.toFixed(2)}`, px, baselineY - (h - 80) - 24);
 
-    // Only show z-scores and percentages for primary distribution
-    if (showPrimary) {
       ctx.font = '10px Arial';
       ctx.fillText(`z = ${zLSL.toFixed(2)}`, px, baselineY - (h - 80) - 12);
       ctx.fillText(`${pctBelowLSL.toFixed(2)}% below`, px, baselineY - (h - 80) - 2);
     }
-  }
 
-  // Draw USL
-  if (usl >= displayMin && usl <= displayMax) {
-    const px = xToPx(usl);
-    ctx.beginPath();
-    ctx.moveTo(px, 0);
-    ctx.lineTo(px, baselineY);
-    ctx.stroke();
+    // Draw USL
+    if (usl >= displayMin && usl <= displayMax) {
+      const px = xToPx(usl);
+      ctx.beginPath();
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, baselineY);
+      ctx.stroke();
 
-    ctx.fillStyle = '#d62728';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(`USL: ${usl.toFixed(2)}`, px, baselineY - (h - 80) - 24);
+      ctx.fillStyle = '#d62728';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`USL: ${usl.toFixed(2)}`, px, baselineY - (h - 80) - 24);
 
-    // Only show z-scores and percentages for primary distribution
-    if (showPrimary) {
       ctx.font = '10px Arial';
       ctx.fillText(`z = ${zUSL.toFixed(2)}`, px, baselineY - (h - 80) - 12);
       ctx.fillText(`${pctAboveUSL.toFixed(2)}% above`, px, baselineY - (h - 80) - 2);
     }
+
+    ctx.setLineDash([]);
   }
 
-  ctx.setLineDash([]);
+  // Draw scenario-specific LSL/USL lines (in comparison mode)
+  if (!showPrimary && scenarios.length > 0) {
+    scenarios.filter((s) => s.visible).forEach((scenario) => {
+      // Draw LSL for this scenario
+      if (scenario.lsl >= displayMin && scenario.lsl <= displayMax) {
+        const px = xToPx(scenario.lsl);
+        ctx.strokeStyle = scenario.color;
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, baselineY);
+        ctx.stroke();
+
+        // Small label at top
+        ctx.fillStyle = scenario.color;
+        ctx.font = '9px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`LSL`, px, 2);
+      }
+
+      // Draw USL for this scenario
+      if (scenario.usl >= displayMin && scenario.usl <= displayMax) {
+        const px = xToPx(scenario.usl);
+        ctx.strokeStyle = scenario.color;
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, baselineY);
+        ctx.stroke();
+
+        // Small label at top
+        ctx.fillStyle = scenario.color;
+        ctx.font = '9px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`USL`, px, 2);
+      }
+    });
+
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+  }
 
   // Draw top axis sigma markers (only for primary distribution)
   if (showPrimary) {

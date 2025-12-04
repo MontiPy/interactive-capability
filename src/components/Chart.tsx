@@ -133,10 +133,35 @@ export default function Chart() {
     return () => window.removeEventListener('resize', resizeCanvas);
   }, []);
 
-  // Handle draggable LSL/USL
+  // Force resize when scenario count changes (ensures proper layout after add/remove)
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM has updated
+    requestAnimationFrame(() => {
+      if (!canvasRef.current || !containerRef.current) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const container = containerRef.current;
+      const width = Math.max(320, container.clientWidth);
+      const height = Math.max(300, container.clientHeight);
+
+      canvasRef.current.style.width = `${width}px`;
+      canvasRef.current.style.height = `${height}px`;
+      canvasRef.current.width = Math.round(width * dpr);
+      canvasRef.current.height = Math.round(height * dpr);
+
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      setCanvasDimensions({ width, height });
+    });
+  }, [state.scenarios.length]);
+
+  // Handle draggable LSL/USL (only in single distribution mode)
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || validationError) return;
+    if (!canvas || validationError || state.activeTab !== 'single') return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!state.draggingLimit) return;
@@ -202,10 +227,10 @@ export default function Chart() {
     };
   }, [state, dispatch, validationError]);
 
-  // Cursor change on hover
+  // Cursor change on hover (only in single distribution mode)
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || validationError) return;
+    if (!canvas || validationError || state.activeTab !== 'single') return;
 
     const handleMouseMoveHover = (e: MouseEvent) => {
       if (state.draggingLimit) {

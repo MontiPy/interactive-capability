@@ -38,24 +38,24 @@ export default function ComparisonStatsTable() {
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 2 }}>
+    <Paper elevation={2} sx={{ p: 2, maxHeight: '300px', display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h6" gutterBottom>
         Scenario Comparison
       </Typography>
-      <TableContainer>
-        <Table size="small">
+      <TableContainer sx={{ maxHeight: '250px', overflowY: 'auto' }}>
+        <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell></TableCell>
-              <TableCell>Scenario</TableCell>
-              <TableCell align="right">μ</TableCell>
-              <TableCell align="right">σ</TableCell>
-              <TableCell align="right">LSL</TableCell>
-              <TableCell align="right">USL</TableCell>
-              <TableCell align="right">Cp</TableCell>
-              <TableCell align="right">Cpk</TableCell>
-              <TableCell align="right">Pp</TableCell>
-              <TableCell align="right">Ppk</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }}></TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }}>Scenario</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">μ</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">σ</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">LSL</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">USL</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Cp</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Cpk</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Pp</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Ppk</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

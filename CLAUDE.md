@@ -124,15 +124,17 @@ src/
 - **Context-aware rendering**:
   - **Single Distribution tab**: Shows primary distribution with full annotations
     - Primary curve, mean line, and sigma label
-    - LSL/USL lines with z-scores and percentages based on primary distribution
+    - Primary LSL/USL lines with z-scores and percentages
     - ±1σ to ±6σ markers on top axis
     - Shaded regions (green for in-spec, red striped for out-of-spec)
+    - Draggable LSL/USL lines with hover cursor feedback
   - **Scenario Comparison tab**: Clean comparison view with only scenario distributions
-    - NO primary distribution curve or markers
-    - LSL/USL reference lines (without z-scores/percentages)
+    - NO primary distribution curve, markers, or LSL/USL lines
+    - Color-coded LSL/USL lines for each visible scenario (matched to distribution color)
+    - Each scenario's LSL/USL shown with small labels at top
     - NO sigma markers or shading
-    - Only scenario curves with legend
-- **Drag LSL/USL lines** directly on canvas with hover cursor feedback
+    - NO dragging functionality (scenarios edited via inline editing)
+    - Only scenario curves with legend and their individual spec limits
 - **Legend**: Automatic legend showing only visible distributions
   - Shows "Primary" only in Single Distribution tab
   - Shows scenario names with color swatches in Scenario Comparison tab
