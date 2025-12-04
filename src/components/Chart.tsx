@@ -8,7 +8,7 @@ export default function Chart() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const renderRequestRef = useRef(false);
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
 
   // Validation
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function Chart() {
   useEffect(() => {
     if (!canvasRef.current || validationError) return;
 
-    const { mean, std, lsl, usl, display, scenarios, histogramData } = state;
+    const { mean, std, lsl, usl, display, scenarios, histogramData, activeTab } = state;
 
     // Use viewport values from context (already computed by hybrid auto-viewport)
     const displayMin = display.displayMin;
@@ -53,84 +53,26 @@ export default function Chart() {
         ? display.tickStep
         : autoTickStep(displayMin, displayMax);
 
-    // Clear canvas first to prevent multiple overlays
-    const ctx = canvasRef.current.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    }
+    // Filter scenarios based on active tab
+    const displayScenarios = activeTab === 'single' ? [] : scenarios;
+    const isComparisonMode = activeTab === 'comparison';
 
-    renderPlot(canvasRef.current, {
-      mean,
-      std,
-      lsl,
-      usl,
-      displayMin,
-      displayMax,
-      tickStep,
-      showGrid: display.showGrid,
-      tickFormat: display.tickFormat,
-      scenarios,
-      histogramData,
-    });
-  }, [
-    state.mean,
-    state.std,
-    state.lsl,
-    state.usl,
-    state.display,
-    state.scenarios,
-    state.histogramData,
-    validationError,
-  ]);
+    // Use requestAnimationFrame for proper timing (Edge compatibility)
+    requestAnimationFrame(() => {
+      if (!canvasRef.current) return;
 
-  // Resize canvas on window resize (fill available container height)
-  useEffect(() => {
-    const resizeCanvas = () => {
-      if (!canvasRef.current || !containerRef.current) return;
-
-      const dpr = window.devicePixelRatio || 1;
-      const container = containerRef.current;
-      const width = Math.max(320, container.clientWidth);
-      const height = Math.max(300, container.clientHeight); // Use container height
-
-      canvasRef.current.style.width = `${width}px`;
-      canvasRef.current.style.height = `${height}px`;
-      canvasRef.current.width = Math.round(width * dpr);
-      canvasRef.current.height = Math.round(height * dpr);
-
+      // Force complete canvas reset for Edge compatibility
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
+        // Nuclear option: reset canvas width to clear all internal state
+        const currentWidth = canvasRef.current.width;
+        const currentHeight = canvasRef.current.height;
+        canvasRef.current.width = currentWidth;
+        canvasRef.current.height = currentHeight;
+
+        // Re-apply device pixel ratio transform
+        const dpr = window.devicePixelRatio || 1;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-
-      // Request a re-render after resize
-      renderRequestRef.current = true;
-    };
-
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, []);
-
-  // Handle render requests from resize
-  useEffect(() => {
-    if (renderRequestRef.current && canvasRef.current && !validationError) {
-      renderRequestRef.current = false;
-
-      const { mean, std, lsl, usl, display, scenarios, histogramData } = state;
-
-      // Use viewport values from context (already computed by hybrid auto-viewport)
-      const displayMin = display.displayMin;
-      const displayMax = display.displayMax;
-
-      const tickStep =
-        display.tickStep && display.tickStep > 0
-          ? display.tickStep
-          : autoTickStep(displayMin, displayMax);
-
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
 
       renderPlot(canvasRef.current, {
@@ -143,11 +85,53 @@ export default function Chart() {
         tickStep,
         showGrid: display.showGrid,
         tickFormat: display.tickFormat,
-        scenarios,
+        scenarios: displayScenarios,
         histogramData,
+        showShading: !isComparisonMode,
+        showPrimary: !isComparisonMode,
       });
-    }
-  }, [state, validationError]);
+    });
+  }, [
+    state.mean,
+    state.std,
+    state.lsl,
+    state.usl,
+    state.display,
+    state.scenarios,
+    state.histogramData,
+    state.activeTab,
+    validationError,
+    canvasDimensions,
+  ]);
+
+  // Resize canvas on window resize and track canvas dimensions (fill available container height)
+  useEffect(() => {
+    const resizeCanvas = () => {
+      if (!canvasRef.current || !containerRef.current) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const container = containerRef.current;
+      const width = Math.max(320, container.clientWidth);
+      const height = Math.max(300, container.clientHeight);
+
+      canvasRef.current.style.width = `${width}px`;
+      canvasRef.current.style.height = `${height}px`;
+      canvasRef.current.width = Math.round(width * dpr);
+      canvasRef.current.height = Math.round(height * dpr);
+
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      // Update dimensions to trigger re-render
+      setCanvasDimensions({ width, height });
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, []);
 
   // Handle draggable LSL/USL
   useEffect(() => {

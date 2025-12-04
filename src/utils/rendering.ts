@@ -13,6 +13,8 @@ export interface RenderOptions {
   tickFormat: 'auto' | '1' | '2' | 'int';
   scenarios?: Scenario[];
   histogramData?: HistogramData | null;
+  showShading?: boolean;
+  showPrimary?: boolean;
 }
 
 /**
@@ -88,6 +90,8 @@ export function renderPlot(
     tickFormat,
     scenarios = [],
     histogramData = null,
+    showShading = true,
+    showPrimary = true,
   } = options;
 
   const dpr = window.devicePixelRatio || 1;
@@ -244,22 +248,27 @@ export function renderPlot(
     ctx.restore();
   };
 
-  // Shade spec regions (for primary distribution)
-  // Out-of-spec regions with subtle stripes
-  shadeRegion(displayMin, lsl, 'rgba(214,39,40,0.06)', true);
-  shadeRegion(usl, displayMax, 'rgba(214,39,40,0.06)', true);
-  // In-spec region with light green/blue
-  shadeRegion(lsl, usl, 'rgba(76,175,80,0.08)', false);
+  // Shade spec regions (for primary distribution) - only in single distribution mode
+  if (showShading) {
+    // Out-of-spec regions with subtle stripes
+    shadeRegion(displayMin, lsl, 'rgba(214,39,40,0.06)', true);
+    shadeRegion(usl, displayMax, 'rgba(214,39,40,0.06)', true);
+    // In-spec region with light green/blue
+    shadeRegion(lsl, usl, 'rgba(76,175,80,0.08)', false);
+  }
 
-  // Draw all normal curves (primary + scenarios)
-  drawCurve(mean, std, '#1f77b4', 2);
+  // Draw primary distribution curve (only in single distribution mode)
+  if (showPrimary) {
+    drawCurve(mean, std, '#1f77b4', 2);
+  }
 
+  // Draw scenario curves
   scenarios.filter((s) => s.visible).forEach((scenario) => {
     drawCurve(scenario.mean, scenario.std, scenario.color, 1.5);
   });
 
-  // Draw mean line (primary only)
-  if (mean >= displayMin && mean <= displayMax) {
+  // Draw mean line and sigma label (primary only)
+  if (showPrimary && mean >= displayMin && mean <= displayMax) {
     const pxMean = xToPx(mean);
     ctx.strokeStyle = '#2ca02c';
     ctx.setLineDash([2, 2]);
@@ -280,32 +289,35 @@ export function renderPlot(
     ctx.fillText(`σ=${std.toFixed(2)}`, w - 10, 8);
   }
 
-  // Draw LSL/USL lines with z-scores and percentages
+  // Draw LSL/USL lines with z-scores and percentages (only for primary distribution)
   ctx.strokeStyle = '#d62728';
   ctx.setLineDash([4, 4]);
 
-  // Calculate z-scores and percentages
-  const zLSL = (lsl - mean) / std;
-  const zUSL = (usl - mean) / std;
+  // Calculate z-scores and percentages (only if showing primary)
+  let zLSL = 0, zUSL = 0, pctBelowLSL = 0, pctAboveUSL = 0;
+  if (showPrimary) {
+    zLSL = (lsl - mean) / std;
+    zUSL = (usl - mean) / std;
 
-  // Import phi function for percentage calculations
-  const phi = (z: number) => 0.5 * (1 + erf(z / Math.SQRT2));
-  const erf = (x: number) => {
-    const sign = x >= 0 ? 1 : -1;
-    x = Math.abs(x);
-    const a1 = 0.254829592;
-    const a2 = -0.284496736;
-    const a3 = 1.421413741;
-    const a4 = -1.453152027;
-    const a5 = 1.061405429;
-    const p = 0.3275911;
-    const t = 1 / (1 + p * x);
-    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-    return sign * y;
-  };
+    // Import phi function for percentage calculations
+    const phi = (z: number) => 0.5 * (1 + erf(z / Math.SQRT2));
+    const erf = (x: number) => {
+      const sign = x >= 0 ? 1 : -1;
+      x = Math.abs(x);
+      const a1 = 0.254829592;
+      const a2 = -0.284496736;
+      const a3 = 1.421413741;
+      const a4 = -1.453152027;
+      const a5 = 1.061405429;
+      const p = 0.3275911;
+      const t = 1 / (1 + p * x);
+      const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+      return sign * y;
+    };
 
-  const pctBelowLSL = phi(zLSL) * 100;
-  const pctAboveUSL = (1 - phi(zUSL)) * 100;
+    pctBelowLSL = phi(zLSL) * 100;
+    pctAboveUSL = (1 - phi(zUSL)) * 100;
+  }
 
   // Draw LSL
   if (lsl >= displayMin && lsl <= displayMax) {
@@ -321,9 +333,12 @@ export function renderPlot(
     ctx.textBaseline = 'bottom';
     ctx.fillText(`LSL: ${lsl.toFixed(2)}`, px, baselineY - (h - 80) - 24);
 
-    ctx.font = '10px Arial';
-    ctx.fillText(`z = ${zLSL.toFixed(2)}`, px, baselineY - (h - 80) - 12);
-    ctx.fillText(`${pctBelowLSL.toFixed(2)}% below`, px, baselineY - (h - 80) - 2);
+    // Only show z-scores and percentages for primary distribution
+    if (showPrimary) {
+      ctx.font = '10px Arial';
+      ctx.fillText(`z = ${zLSL.toFixed(2)}`, px, baselineY - (h - 80) - 12);
+      ctx.fillText(`${pctBelowLSL.toFixed(2)}% below`, px, baselineY - (h - 80) - 2);
+    }
   }
 
   // Draw USL
@@ -340,40 +355,45 @@ export function renderPlot(
     ctx.textBaseline = 'bottom';
     ctx.fillText(`USL: ${usl.toFixed(2)}`, px, baselineY - (h - 80) - 24);
 
-    ctx.font = '10px Arial';
-    ctx.fillText(`z = ${zUSL.toFixed(2)}`, px, baselineY - (h - 80) - 12);
-    ctx.fillText(`${pctAboveUSL.toFixed(2)}% above`, px, baselineY - (h - 80) - 2);
+    // Only show z-scores and percentages for primary distribution
+    if (showPrimary) {
+      ctx.font = '10px Arial';
+      ctx.fillText(`z = ${zUSL.toFixed(2)}`, px, baselineY - (h - 80) - 12);
+      ctx.fillText(`${pctAboveUSL.toFixed(2)}% above`, px, baselineY - (h - 80) - 2);
+    }
   }
 
   ctx.setLineDash([]);
 
-  // Draw top axis sigma markers
-  ctx.font = '11px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  const topY = 18;
+  // Draw top axis sigma markers (only for primary distribution)
+  if (showPrimary) {
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    const topY = 18;
 
-  for (let n = 1; n <= 6; n++) {
-    [-1, 1].forEach((sign) => {
-      const x = mean + sign * n * std;
-      if (x < displayMin || x > displayMax) return;
+    for (let n = 1; n <= 6; n++) {
+      [-1, 1].forEach((sign) => {
+        const x = mean + sign * n * std;
+        if (x < displayMin || x > displayMax) return;
 
-      const px = xToPx(x);
-      ctx.strokeStyle = '#666';
-      ctx.beginPath();
-      ctx.moveTo(px, topY);
-      ctx.lineTo(px, topY + 6);
-      ctx.stroke();
+        const px = xToPx(x);
+        ctx.strokeStyle = '#666';
+        ctx.beginPath();
+        ctx.moveTo(px, topY);
+        ctx.lineTo(px, topY + 6);
+        ctx.stroke();
 
-      const label = (sign > 0 ? '+' : '-') + n + 'σ';
-      ctx.fillStyle = '#222';
-      ctx.fillText(label, px, topY - 2);
-    });
+        const label = (sign > 0 ? '+' : '-') + n + 'σ';
+        ctx.fillStyle = '#222';
+        ctx.fillText(label, px, topY - 2);
+      });
+    }
   }
 
   // Draw legend for multiple scenarios (top-right with backdrop)
   const visibleScenarios = scenarios.filter((s) => s.visible);
-  if (visibleScenarios.length > 0) {
+  if (visibleScenarios.length > 0 || (showPrimary && visibleScenarios.length === 0)) {
     ctx.save();
 
     ctx.font = '11px Arial';
@@ -381,7 +401,8 @@ export function renderPlot(
     ctx.textBaseline = 'top';
 
     // Calculate legend dimensions
-    const legendItems = [{ name: 'Primary', color: '#1f77b4' }, ...visibleScenarios];
+    const primaryItem = showPrimary ? [{ name: 'Primary', color: '#1f77b4' }] : [];
+    const legendItems = [...primaryItem, ...visibleScenarios];
     const padding = 8;
     const lineHeight = 16;
     const swatchSize = 12;
@@ -413,9 +434,8 @@ export function renderPlot(
       ctx.fillStyle = item.color;
       ctx.fillRect(legendX + padding, itemY + 2, swatchSize, swatchSize);
 
-      // Draw label (grey out if hidden)
-      const isVisible = item.name === 'Primary' || visibleScenarios.find((s) => s.name === item.name);
-      ctx.fillStyle = isVisible ? '#333' : '#999';
+      // Draw label
+      ctx.fillStyle = '#333';
       ctx.fillText(item.name, legendX + padding + swatchSize + swatchGap, itemY);
     });
 

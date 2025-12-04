@@ -1,7 +1,19 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { AppState, AppAction } from '../types';
 import { loadFromURL, saveToURL } from '../utils/presets';
-import { computeHybridViewport, computeFitToMeanViewport } from '../utils/viewport';
+import { computeHybridViewport, computeFitToMeanViewport, computeMultiDistributionViewport } from '../utils/viewport';
+
+const SCENARIO_COLORS = [
+  '#ff7f0e',
+  '#2ca02c',
+  '#d62728',
+  '#9467bd',
+  '#8c564b',
+  '#e377c2',
+  '#7f7f7f',
+  '#bcbd22',
+  '#17becf',
+];
 
 const initialState: AppState = {
   mean: 0,
@@ -24,6 +36,7 @@ const initialState: AppState = {
   focusedScenarioId: null,
   histogramData: null,
   draggingLimit: null,
+  activeTab: 'single',
 };
 
 // Helper to apply auto-range viewport when enabled
@@ -31,7 +44,10 @@ function applyAutoRangeIfEnabled(state: AppState): AppState {
   if (!state.display.autoRange) return state;
 
   let viewport;
-  if (state.display.fitToMean) {
+  if (state.activeTab === 'comparison') {
+    // Use multi-distribution viewport for comparison mode
+    viewport = computeMultiDistributionViewport(state.scenarios);
+  } else if (state.display.fitToMean) {
     // Fit to mean overrides hybrid auto-range
     viewport = computeFitToMeanViewport(state.mean, state.std, state.display.fitMultiplier);
   } else {
@@ -93,28 +109,34 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case 'UPDATE_SCENARIO':
-      return {
+      nextState = {
         ...state,
         scenarios: state.scenarios.map((s) =>
           s.id === action.payload.id ? { ...s, ...action.payload.updates } : s
         ),
       };
+      // Trigger viewport recalculation in comparison mode
+      return applyAutoRangeIfEnabled(nextState);
 
     case 'DELETE_SCENARIO':
-      return {
+      nextState = {
         ...state,
         scenarios: state.scenarios.filter((s) => s.id !== action.payload),
         activeScenarioId:
           state.activeScenarioId === action.payload ? null : state.activeScenarioId,
       };
+      // Trigger viewport recalculation in comparison mode
+      return applyAutoRangeIfEnabled(nextState);
 
     case 'TOGGLE_SCENARIO':
-      return {
+      nextState = {
         ...state,
         scenarios: state.scenarios.map((s) =>
           s.id === action.payload ? { ...s, visible: !s.visible } : s
         ),
       };
+      // Trigger viewport recalculation in comparison mode
+      return applyAutoRangeIfEnabled(nextState);
 
     case 'SET_ACTIVE_SCENARIO':
       return { ...state, activeScenarioId: action.payload };
@@ -165,6 +187,69 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...action.payload,
       };
       // Apply auto-range on initial load from URL
+      return applyAutoRangeIfEnabled(nextState);
+
+    case 'SET_ACTIVE_TAB':
+      nextState = { ...state, activeTab: action.payload };
+      // Trigger viewport recalculation when switching tabs
+      return applyAutoRangeIfEnabled(nextState);
+
+    case 'ADD_CURRENT_AS_SCENARIO':
+      const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
+      const scenarioFromCurrent = {
+        id: `scenario-${Date.now()}-${Math.random()}`,
+        name: action.payload || `Scenario ${state.scenarios.length + 1}`,
+        mean: state.mean,
+        std: state.std,
+        lsl: state.lsl,
+        usl: state.usl,
+        color: SCENARIO_COLORS[colorIndex],
+        visible: true,
+      };
+      nextState = {
+        ...state,
+        scenarios: [...state.scenarios, scenarioFromCurrent],
+        activeTab: 'comparison', // Auto-switch to comparison tab
+      };
+      // Trigger viewport recalculation for comparison mode
+      return applyAutoRangeIfEnabled(nextState);
+
+    case 'IMPORT_DATA_AS_SCENARIO':
+      const importColorIndex = state.scenarios.length % SCENARIO_COLORS.length;
+      const importedScenario = {
+        id: `scenario-${Date.now()}-${Math.random()}`,
+        name: action.payload.name || `Imported Scenario ${state.scenarios.length + 1}`,
+        mean: action.payload.data.mean,
+        std: action.payload.data.std,
+        lsl: state.lsl, // Use current LSL/USL as defaults
+        usl: state.usl,
+        color: SCENARIO_COLORS[importColorIndex],
+        visible: true,
+      };
+      nextState = {
+        ...state,
+        scenarios: [...state.scenarios, importedScenario],
+      };
+      // Trigger viewport recalculation for comparison mode
+      return applyAutoRangeIfEnabled(nextState);
+
+    case 'ADD_NEW_SCENARIO':
+      const newColorIndex = state.scenarios.length % SCENARIO_COLORS.length;
+      const defaultScenario = {
+        id: `scenario-${Date.now()}-${Math.random()}`,
+        name: `Scenario ${state.scenarios.length + 1}`,
+        mean: 0,
+        std: 1,
+        lsl: -3,
+        usl: 3,
+        color: SCENARIO_COLORS[newColorIndex],
+        visible: true,
+      };
+      nextState = {
+        ...state,
+        scenarios: [...state.scenarios, defaultScenario],
+      };
+      // Trigger viewport recalculation for comparison mode
       return applyAutoRangeIfEnabled(nextState);
 
     default:

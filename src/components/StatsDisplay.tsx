@@ -1,14 +1,20 @@
-import { Box, Paper, Typography, Button, Chip } from '@mui/material';
+import { Box, Paper, Typography, Chip } from '@mui/material';
 import { useApp } from '../context/AppContext';
 import { computeStats } from '../utils/stats';
 import { getCapabilityColor } from '../theme';
+import ComparisonStatsTable from './ComparisonStatsTable';
 
 interface StatsDisplayProps {
   onOpenAdvanced: () => void;
 }
 
-export default function StatsDisplay({ onOpenAdvanced }: StatsDisplayProps) {
+export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced }: StatsDisplayProps) {
   const { state } = useApp();
+
+  // In comparison mode with no focused scenario, show comparison table
+  if (state.activeTab === 'comparison' && !state.focusedScenarioId) {
+    return <ComparisonStatsTable />;
+  }
 
   // Determine which scenario's metrics to display
   let stats;

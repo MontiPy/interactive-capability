@@ -68,6 +68,7 @@ export interface AppState {
 
   // UI state
   draggingLimit: 'lsl' | 'usl' | null;
+  activeTab: 'single' | 'comparison'; // Tab navigation state
 }
 
 export type AppAction =
@@ -88,7 +89,11 @@ export type AppAction =
   | { type: 'SET_DRAGGING_LIMIT'; payload: 'lsl' | 'usl' | null }
   | { type: 'RESET_DISPLAY' }
   | { type: 'LOAD_PRESET'; payload: Partial<AppState> }
-  | { type: 'LOAD_FROM_URL'; payload: Partial<AppState> };
+  | { type: 'LOAD_FROM_URL'; payload: Partial<AppState> }
+  | { type: 'SET_ACTIVE_TAB'; payload: 'single' | 'comparison' }
+  | { type: 'ADD_CURRENT_AS_SCENARIO'; payload?: string }
+  | { type: 'IMPORT_DATA_AS_SCENARIO'; payload: { name: string; data: HistogramData } }
+  | { type: 'ADD_NEW_SCENARIO' };
 
 // Preset configuration
 export interface Preset {

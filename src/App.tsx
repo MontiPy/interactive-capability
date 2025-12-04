@@ -3,13 +3,13 @@ import {
   Box,
   Fab,
   Grid,
-  Button,
-  Stack,
   IconButton,
   Drawer,
   useMediaQuery,
   useTheme,
   Tooltip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -17,72 +17,67 @@ import {
   ChevronRight as ExpandIcon,
   Menu as MenuIcon,
 } from '@mui/icons-material';
-import DistributionControls from './components/DistributionControls';
-import SpecLimitControls from './components/SpecLimitControls';
-import DisplayControls from './components/DisplayControls';
 import Chart from './components/Chart';
 import StatsDisplay from './components/StatsDisplay';
 import ExportMenu from './components/ExportMenu';
 import DataImportDialog from './components/DataImportDialog';
-import ScenarioManager from './components/ScenarioManager';
 import PresetsMenu from './components/PresetsMenu';
 import AdvancedStatsDialog from './components/AdvancedStatsDialog';
+import TabNavigation from './components/TabNavigation';
+import SingleDistributionPanel from './components/SingleDistributionPanel';
+import ComparisonPanel from './components/ComparisonPanel';
 import { useState } from 'react';
+import { useApp } from './context/AppContext';
 
 export default function App() {
+  const { state } = useApp();
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   const [dataImportOpen, setDataImportOpen] = useState(false);
   const [advancedStatsOpen, setAdvancedStatsOpen] = useState(false);
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const controlsContent = (
-    <Grid container spacing={2}>
-      {/* Left sub-column */}
-      <Grid item xs={12} md={6}>
-        <Stack spacing={2}>
-          <DistributionControls />
-          <SpecLimitControls />
-        </Stack>
-      </Grid>
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
-      {/* Right sub-column */}
-      <Grid item xs={12} md={6}>
-        <Stack spacing={2}>
-          <DisplayControls />
-          <ScenarioManager />
-        </Stack>
-      </Grid>
+  const showSnackbar = (message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
 
-      {/* Full width buttons at bottom */}
-      <Grid item xs={12}>
-        <Stack spacing={1}>
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={() => {
-              setDataImportOpen(true);
-              if (isMobile) setMobileDrawerOpen(false);
-            }}
-          >
-            Import Data
-          </Button>
-          <Button
-            variant="outlined"
-            fullWidth
-            onClick={() => {
-              setAdvancedStatsOpen(true);
-              if (isMobile) setMobileDrawerOpen(false);
-            }}
-          >
-            View Advanced Stats
-          </Button>
-        </Stack>
-      </Grid>
-    </Grid>
+  const controlsContent = state.activeTab === 'single' ? (
+    <SingleDistributionPanel
+      onImportData={() => {
+        setDataImportOpen(true);
+        if (isMobile) setMobileDrawerOpen(false);
+      }}
+      onAdvancedStats={() => {
+        setAdvancedStatsOpen(true);
+        if (isMobile) setMobileDrawerOpen(false);
+      }}
+      onScenarioAdded={() => {
+        showSnackbar('Added to Scenario Comparison', 'success');
+      }}
+    />
+  ) : (
+    <ComparisonPanel
+      onImportData={() => {
+        setDataImportOpen(true);
+        if (isMobile) setMobileDrawerOpen(false);
+      }}
+      onAdvancedStats={() => {
+        setAdvancedStatsOpen(true);
+        if (isMobile) setMobileDrawerOpen(false);
+      }}
+    />
   );
 
   return (
@@ -99,7 +94,7 @@ export default function App() {
           alignItems: 'center',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {isMobile && (
             <IconButton
               onClick={() => setMobileDrawerOpen(true)}
@@ -111,6 +106,7 @@ export default function App() {
           <Typography variant="h5" component="h1" fontWeight={600}>
             Process Capability Playground
           </Typography>
+          {!isMobile && <TabNavigation />}
         </Box>
         <PresetsMenu />
       </Box>
@@ -247,6 +243,17 @@ export default function App() {
         open={advancedStatsOpen}
         onClose={() => setAdvancedStatsOpen(false)}
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

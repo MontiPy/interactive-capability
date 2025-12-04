@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -13,16 +12,12 @@ import {
   AccordionDetails,
   Divider,
   Paper,
-  InputAdornment,
-  Chip,
-  Stack,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
-  Search as SearchIcon,
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
-import { computeStats, computeAdvancedStats } from '../utils/stats';
+import { computeAdvancedStats } from '../utils/stats';
 import { getCapabilityColor } from '../theme';
 
 interface AdvancedStatsDialogProps {
@@ -32,9 +27,7 @@ interface AdvancedStatsDialogProps {
 
 export default function AdvancedStatsDialog({ open, onClose }: AdvancedStatsDialogProps) {
   const { state, dispatch } = useApp();
-  const [searchQuery, setSearchQuery] = useState('');
 
-  const basicStats = computeStats(state.mean, state.std, state.lsl, state.usl);
   const advancedStats = computeAdvancedStats(
     state.mean,
     state.std,
@@ -76,22 +69,6 @@ export default function AdvancedStatsDialog({ open, onClose }: AdvancedStatsDial
     );
   };
 
-  // Filter sections based on search
-  const matchesSearch = (text: string) => {
-    if (!searchQuery) return true;
-    return text.toLowerCase().includes(searchQuery.toLowerCase());
-  };
-
-  const sections = [
-    { id: 'basic', title: 'Basic Capability Indices', keywords: 'cp cpk capability process' },
-    { id: 'performance', title: 'Process Performance Indices', keywords: 'pp ppk performance' },
-    { id: 'sixsigma', title: 'Six Sigma Metrics', keywords: 'dpmo sigma level defects' },
-    { id: 'taguchi', title: 'Taguchi Index (Cpm)', keywords: 'cpm taguchi target' },
-  ];
-
-  const visibleSections = sections.filter(
-    (s) => matchesSearch(s.title) || matchesSearch(s.keywords)
-  );
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>

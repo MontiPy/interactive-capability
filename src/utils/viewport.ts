@@ -83,3 +83,40 @@ export function computeFitToMeanViewport(
 
   return { displayMin, displayMax };
 }
+
+/**
+ * Compute viewport for multiple distributions in comparison mode
+ * Takes the widest range across all visible scenarios
+ */
+export function computeMultiDistributionViewport(
+  scenarios: Array<{ mean: number; std: number; lsl: number; usl: number; visible: boolean }>
+): ViewportBounds {
+  const visibleScenarios = scenarios.filter(s => s.visible);
+
+  // Fallback if no scenarios visible
+  if (visibleScenarios.length === 0) {
+    return { displayMin: -6, displayMax: 6 };
+  }
+
+  let globalMin = Infinity;
+  let globalMax = -Infinity;
+
+  // Calculate viewport for each scenario using hybrid algorithm
+  visibleScenarios.forEach(scenario => {
+    const viewport = computeHybridViewport(
+      scenario.mean,
+      scenario.std,
+      scenario.lsl,
+      scenario.usl
+    );
+    globalMin = Math.min(globalMin, viewport.displayMin);
+    globalMax = Math.max(globalMax, viewport.displayMax);
+  });
+
+  // Safety checks
+  if (!isFinite(globalMin) || !isFinite(globalMax) || globalMin >= globalMax) {
+    return { displayMin: -6, displayMax: 6 };
+  }
+
+  return { displayMin: globalMin, displayMax: globalMax };
+}
