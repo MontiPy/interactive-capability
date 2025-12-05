@@ -1,15 +1,17 @@
 import { Stack, Button, Typography, Box, Paper } from '@mui/material';
-import { ArrowForward as ArrowForwardIcon, Add as AddIcon } from '@mui/icons-material';
+import { ArrowForward as ArrowForwardIcon, Add as AddIcon, BookmarkBorder as PresetIcon } from '@mui/icons-material';
 import ScenarioManager from './ScenarioManager';
+import PresetScenarioDialog from './PresetScenarioDialog';
 import { useApp } from '../context/AppContext';
+import { useState } from 'react';
 
 interface ComparisonPanelProps {
   onImportData: () => void;
-  onAdvancedStats: () => void;
 }
 
-export default function ComparisonPanel({ onImportData, onAdvancedStats }: ComparisonPanelProps) {
+export default function ComparisonPanel({ onImportData }: ComparisonPanelProps) {
   const { state, dispatch } = useApp();
+  const [presetDialogOpen, setPresetDialogOpen] = useState(false);
 
   const handleGoToSingleTab = () => {
     dispatch({ type: 'SET_ACTIVE_TAB', payload: 'single' });
@@ -56,28 +58,53 @@ export default function ComparisonPanel({ onImportData, onAdvancedStats }: Compa
   }
 
   return (
-    <Stack spacing={2}>
-      {/* Scenario Manager - full view mode */}
-      <ScenarioManager fullView />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Scrollable scenario list */}
+      <Box sx={{ flex: 1, overflowY: 'auto', pb: 2 }}>
+        <ScenarioManager fullView />
+      </Box>
 
-      {/* Action buttons */}
-      <Stack spacing={1}>
-        <Button
-          variant="contained"
-          color="primary"
-          fullWidth
-          startIcon={<AddIcon />}
-          onClick={handleAddNewScenario}
-        >
-          Add Blank Scenario
-        </Button>
-        <Button variant="outlined" fullWidth onClick={onImportData}>
-          Import Data as Scenario
-        </Button>
-        <Button variant="outlined" fullWidth onClick={onAdvancedStats}>
-          View Advanced Stats
-        </Button>
-      </Stack>
-    </Stack>
+      {/* Sticky action buttons at bottom */}
+      <Box
+        sx={{
+          position: 'sticky',
+          bottom: 0,
+          backgroundColor: 'background.paper',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          pt: 2,
+          pb: 1,
+          zIndex: 1,
+        }}
+      >
+        <Stack spacing={1}>
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            startIcon={<AddIcon />}
+            onClick={handleAddNewScenario}
+          >
+            Add Blank Scenario
+          </Button>
+          <Button
+            variant="outlined"
+            fullWidth
+            startIcon={<PresetIcon />}
+            onClick={() => setPresetDialogOpen(true)}
+          >
+            Load Preset as Scenario
+          </Button>
+          <Button variant="outlined" fullWidth onClick={onImportData}>
+            Import Data as Scenario
+          </Button>
+        </Stack>
+      </Box>
+
+      <PresetScenarioDialog
+        open={presetDialogOpen}
+        onClose={() => setPresetDialogOpen(false)}
+      />
+    </Box>
   );
 }

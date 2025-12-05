@@ -339,15 +339,17 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
   const scenarioList = (
     <Stack spacing={fullView ? 2 : 1.5}>
       {state.scenarios.map(renderScenarioCard)}
-      <Button
-        variant="outlined"
-        startIcon={<AddIcon />}
-        onClick={handleOpenDialog}
-        fullWidth
-        size={fullView ? 'medium' : 'small'}
-      >
-        Add from Single Distribution
-      </Button>
+      {!fullView && (
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={handleOpenDialog}
+          fullWidth
+          size="small"
+        >
+          Add from Single Distribution
+        </Button>
+      )}
     </Stack>
   );
 

@@ -36,6 +36,7 @@ The application uses a **tab-based navigation system** with two distinct modes:
 
 **Tab 2: Scenario Comparison** - Comparing multiple distributions
 - Full-view Scenario Manager with inline editing
+- Scrollable scenario list with sticky action buttons at bottom
 - Chart shows all visible scenarios (primary hidden)
 - Multi-distribution viewport adjusts to show all scenarios
 - Comparison stats table when no scenario focused
@@ -77,20 +78,22 @@ src/
 ├── context/
 │   └── AppContext.tsx    →  Global state management (Context + useReducer)
 ├── components/
-│   ├── TabNavigation.tsx           →  Tab navigation component (new)
-│   ├── SingleDistributionPanel.tsx →  Single distribution tab content (new)
-│   ├── ComparisonPanel.tsx         →  Scenario comparison tab content (new)
-│   ├── ComparisonStatsTable.tsx    →  Multi-scenario comparison table (new)
+│   ├── TabNavigation.tsx           →  Tab navigation component
+│   ├── SingleDistributionPanel.tsx →  Single distribution tab content
+│   ├── ComparisonPanel.tsx         →  Scenario comparison tab content
+│   ├── ComparisonStatsTable.tsx    →  Multi-scenario comparison table
 │   ├── Chart.tsx                   →  Canvas-based chart (filters by activeTab)
 │   ├── StatsDisplay.tsx            →  Stats display with comparison mode
 │   ├── ScenarioManager.tsx         →  Enhanced with fullView & inline editing
+│   ├── PresetScenarioDialog.tsx    →  Load presets as scenarios (new)
 │   ├── DistributionControls.tsx
 │   ├── SpecLimitControls.tsx
 │   ├── DisplayControls.tsx
 │   ├── AdvancedStatsDialog.tsx
 │   ├── DataImportDialog.tsx
 │   ├── PresetsMenu.tsx
-│   └── ExportMenu.tsx
+│   ├── ExportMenu.tsx
+│   └── Layout.tsx                  →  Main layout with responsive controls
 └── utils/
     ├── stats.ts          →  Pure statistical functions
     ├── rendering.ts      →  Canvas rendering utilities
@@ -194,6 +197,13 @@ src/
   - Available in both empty state and when scenarios exist
   - Parameters immediately editable via inline editing
 - **Full-view mode in comparison tab**: Expanded cards with inline editing
+  - Scrollable scenario list with sticky action buttons at bottom
+  - Action buttons always visible regardless of number of scenarios
+  - Includes: Add Blank Scenario, Load Preset as Scenario, Import Data as Scenario
+- **Load Preset as Scenario**: Dialog to select from predefined presets and add as scenarios
+  - Shows all 5 presets with descriptions and preview metrics (Cp, Cpk, σ)
+  - Each preset becomes a new scenario with preset name
+  - "Load Preset" button in header hidden on comparison tab
 - **Inline editing**: Click Edit to modify μ, σ, LSL, USL directly in cards
   - TextField controls with validation
   - Save/Cancel buttons
