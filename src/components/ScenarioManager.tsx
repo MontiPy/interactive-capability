@@ -65,6 +65,12 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     lsl: 0,
     usl: 0,
   });
+  const [editInputs, setEditInputs] = useState({
+    mean: '0',
+    std: '1',
+    lsl: '0',
+    usl: '0',
+  });
   const [goalSeekDialogOpen, setGoalSeekDialogOpen] = useState(false);
   const [goalSeekScenario, setGoalSeekScenario] = useState<typeof state.scenarios[0] | null>(null);
   const [newScenario, setNewScenario] = useState({
@@ -132,6 +138,12 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
       std: scenario.std,
       lsl: scenario.lsl,
       usl: scenario.usl,
+    });
+    setEditInputs({
+      mean: scenario.mean.toString(),
+      std: scenario.std.toString(),
+      lsl: scenario.lsl.toString(),
+      usl: scenario.usl.toString(),
     });
   };
 
@@ -213,19 +225,44 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                     <TextField
                       label="μ"
                       type="number"
-                      value={editValues.mean}
-                      onChange={(e) => setEditValues({ ...editValues, mean: parseFloat(e.target.value) || 0 })}
+                      value={editInputs.mean}
+                      onChange={(e) => {
+                        setEditInputs({ ...editInputs, mean: e.target.value });
+                        const val = parseFloat(e.target.value);
+                        if (isFinite(val)) {
+                          setEditValues({ ...editValues, mean: val });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (!e.target.value.trim()) {
+                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          if (scenario) {
+                            setEditInputs({ ...editInputs, mean: scenario.mean.toString() });
+                            setEditValues({ ...editValues, mean: scenario.mean });
+                          }
+                        }
+                      }}
                       size="small"
                       fullWidth
                     />
                     <TextField
                       label="σ"
                       type="number"
-                      value={editValues.std}
+                      value={editInputs.std}
                       onChange={(e) => {
+                        setEditInputs({ ...editInputs, std: e.target.value });
                         const val = parseFloat(e.target.value);
-                        if (!isNaN(val) && val > 0) {
+                        if (isFinite(val) && val > 0) {
                           setEditValues({ ...editValues, std: val });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (!e.target.value.trim()) {
+                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          if (scenario) {
+                            setEditInputs({ ...editInputs, std: scenario.std.toString() });
+                            setEditValues({ ...editValues, std: scenario.std });
+                          }
                         }
                       }}
                       inputProps={{ min: 0.01, step: 0.01 }}
@@ -237,16 +274,46 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                     <TextField
                       label="LSL"
                       type="number"
-                      value={editValues.lsl}
-                      onChange={(e) => setEditValues({ ...editValues, lsl: parseFloat(e.target.value) || 0 })}
+                      value={editInputs.lsl}
+                      onChange={(e) => {
+                        setEditInputs({ ...editInputs, lsl: e.target.value });
+                        const val = parseFloat(e.target.value);
+                        if (isFinite(val)) {
+                          setEditValues({ ...editValues, lsl: val });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (!e.target.value.trim()) {
+                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          if (scenario) {
+                            setEditInputs({ ...editInputs, lsl: scenario.lsl.toString() });
+                            setEditValues({ ...editValues, lsl: scenario.lsl });
+                          }
+                        }
+                      }}
                       size="small"
                       fullWidth
                     />
                     <TextField
                       label="USL"
                       type="number"
-                      value={editValues.usl}
-                      onChange={(e) => setEditValues({ ...editValues, usl: parseFloat(e.target.value) || 0 })}
+                      value={editInputs.usl}
+                      onChange={(e) => {
+                        setEditInputs({ ...editInputs, usl: e.target.value });
+                        const val = parseFloat(e.target.value);
+                        if (isFinite(val)) {
+                          setEditValues({ ...editValues, usl: val });
+                        }
+                      }}
+                      onBlur={(e) => {
+                        if (!e.target.value.trim()) {
+                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          if (scenario) {
+                            setEditInputs({ ...editInputs, usl: scenario.usl.toString() });
+                            setEditValues({ ...editValues, usl: scenario.usl });
+                          }
+                        }
+                      }}
                       size="small"
                       fullWidth
                     />
@@ -429,6 +496,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   onChange={(e) =>
                     setNewScenario({ ...newScenario, mean: parseFloat(e.target.value) })
                   }
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, mean: state.mean });
+                    }
+                  }}
                   fullWidth
                   size="small"
                 />
@@ -440,6 +512,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                     const val = parseFloat(e.target.value);
                     if (!isNaN(val) && val > 0) {
                       setNewScenario({ ...newScenario, std: val });
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, std: state.std });
                     }
                   }}
                   onKeyDown={(e) => {
@@ -464,6 +541,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   onChange={(e) =>
                     setNewScenario({ ...newScenario, lsl: parseFloat(e.target.value) })
                   }
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, lsl: state.lsl });
+                    }
+                  }}
                   fullWidth
                   size="small"
                 />
@@ -474,6 +556,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   onChange={(e) =>
                     setNewScenario({ ...newScenario, usl: parseFloat(e.target.value) })
                   }
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, usl: state.usl });
+                    }
+                  }}
                   fullWidth
                   size="small"
                 />
@@ -540,6 +627,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   onChange={(e) =>
                     setNewScenario({ ...newScenario, mean: parseFloat(e.target.value) })
                   }
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, mean: state.mean });
+                    }
+                  }}
                   fullWidth
                   size="small"
                 />
@@ -551,6 +643,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                     const val = parseFloat(e.target.value);
                     if (!isNaN(val) && val > 0) {
                       setNewScenario({ ...newScenario, std: val });
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, std: state.std });
                     }
                   }}
                   onKeyDown={(e) => {
@@ -575,6 +672,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   onChange={(e) =>
                     setNewScenario({ ...newScenario, lsl: parseFloat(e.target.value) })
                   }
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, lsl: state.lsl });
+                    }
+                  }}
                   fullWidth
                   size="small"
                 />
@@ -585,6 +687,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   onChange={(e) =>
                     setNewScenario({ ...newScenario, usl: parseFloat(e.target.value) })
                   }
+                  onBlur={(e) => {
+                    if (!e.target.value.trim()) {
+                      setNewScenario({ ...newScenario, usl: state.usl });
+                    }
+                  }}
                   fullWidth
                   size="small"
                 />

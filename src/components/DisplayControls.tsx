@@ -19,18 +19,52 @@ import {
   HelpOutline as HelpIcon,
   RestartAlt as ResetIcon,
 } from '@mui/icons-material';
+import { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function DisplayControls() {
   const { state, dispatch } = useApp();
   const isTickStepAuto = state.display.tickStep === null || state.display.tickStep === 0;
+  const [displayMinInput, setDisplayMinInput] = useState(state.display.displayMin.toFixed(2));
+  const [displayMaxInput, setDisplayMaxInput] = useState(state.display.displayMax.toFixed(2));
+  const [fitMultiplierInput, setFitMultiplierInput] = useState(state.display.fitMultiplier.toString());
+
+  useEffect(() => {
+    setDisplayMinInput(state.display.displayMin.toFixed(2));
+  }, [state.display.displayMin]);
+
+  useEffect(() => {
+    setDisplayMaxInput(state.display.displayMax.toFixed(2));
+  }, [state.display.displayMax]);
+
+  useEffect(() => {
+    setFitMultiplierInput(state.display.fitMultiplier.toString());
+  }, [state.display.fitMultiplier]);
 
   const handleManualRangeChange = (field: 'displayMin' | 'displayMax', value: string) => {
+    if (field === 'displayMin') {
+      setDisplayMinInput(value);
+    } else {
+      setDisplayMaxInput(value);
+    }
+    if (!value.trim()) return;
     const num = parseFloat(value);
     if (isFinite(num)) {
       dispatch({
         type: 'UPDATE_DISPLAY',
         payload: { [field]: num, autoRange: false }, // Disable auto when manually editing
+      });
+    }
+  };
+
+  const handleFitMultiplierChange = (value: string) => {
+    setFitMultiplierInput(value);
+    if (!value.trim()) return;
+    const num = parseFloat(value);
+    if (isFinite(num)) {
+      dispatch({
+        type: 'UPDATE_DISPLAY',
+        payload: { fitMultiplier: num },
       });
     }
   };
@@ -86,8 +120,13 @@ export default function DisplayControls() {
               <TextField
                 label="Min"
                 type="number"
-                value={state.display.displayMin.toFixed(2)}
+                value={displayMinInput}
                 onChange={(e) => handleManualRangeChange('displayMin', e.target.value)}
+                onBlur={() => {
+                  if (!displayMinInput.trim()) {
+                    setDisplayMinInput(state.display.displayMin.toFixed(2));
+                  }
+                }}
                 disabled={state.display.autoRange}
                 inputProps={{
                   step: 0.5,
@@ -99,8 +138,13 @@ export default function DisplayControls() {
               <TextField
                 label="Max"
                 type="number"
-                value={state.display.displayMax.toFixed(2)}
+                value={displayMaxInput}
                 onChange={(e) => handleManualRangeChange('displayMax', e.target.value)}
+                onBlur={() => {
+                  if (!displayMaxInput.trim()) {
+                    setDisplayMaxInput(state.display.displayMax.toFixed(2));
+                  }
+                }}
                 disabled={state.display.autoRange}
                 inputProps={{
                   step: 0.5,
@@ -220,13 +264,13 @@ export default function DisplayControls() {
                 <Typography variant="body2">N =</Typography>
                 <TextField
                   type="number"
-                  value={state.display.fitMultiplier}
-                  onChange={(e) =>
-                    dispatch({
-                      type: 'UPDATE_DISPLAY',
-                      payload: { fitMultiplier: parseFloat(e.target.value) || 4 },
-                    })
-                  }
+                  value={fitMultiplierInput}
+                  onChange={(e) => handleFitMultiplierChange(e.target.value)}
+                  onBlur={() => {
+                    if (!fitMultiplierInput.trim()) {
+                      setFitMultiplierInput(state.display.fitMultiplier.toString());
+                    }
+                  }}
                   inputProps={{
                     step: 0.5,
                     min: 0.5,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Accordion,
   AccordionSummary,
@@ -22,10 +22,25 @@ export default function DistributionControls() {
   const { state, dispatch } = useApp();
   const [meanError, setMeanError] = useState<string>('');
   const [stdError, setStdError] = useState<string>('');
+  const [meanInput, setMeanInput] = useState(state.mean.toString());
+  const [stdInput, setStdInput] = useState(state.std.toString());
+
+  useEffect(() => {
+    setMeanInput(state.mean.toString());
+  }, [state.mean]);
+
+  useEffect(() => {
+    setStdInput(state.std.toString());
+  }, [state.std]);
 
   const handleMeanChange = (value: string) => {
+    setMeanInput(value);
+    if (!value.trim()) {
+      setMeanError('');
+      return;
+    }
     const num = parseFloat(value);
-    if (!value || !isFinite(num)) {
+    if (!isFinite(num)) {
       setMeanError('Mean must be a finite number');
       return;
     }
@@ -38,8 +53,13 @@ export default function DistributionControls() {
   };
 
   const handleStdChange = (value: string) => {
+    setStdInput(value);
+    if (!value.trim()) {
+      setStdError('');
+      return;
+    }
     const num = parseFloat(value);
-    if (!value || !isFinite(num) || num < 0) {
+    if (!isFinite(num) || num < 0) {
       setStdError('Standard deviation must be a positive number');
       return;
     }
@@ -89,7 +109,9 @@ export default function DistributionControls() {
                 value={state.mean}
                 onChange={(_, val) => {
                   setMeanError('');
-                  dispatch({ type: 'SET_MEAN', payload: val as number });
+                  const numVal = val as number;
+                  setMeanInput(numVal.toString());
+                  dispatch({ type: 'SET_MEAN', payload: numVal });
                 }}
                 min={-10}
                 max={10}
@@ -100,8 +122,14 @@ export default function DistributionControls() {
               <Box>
                 <TextField
                   type="number"
-                  value={state.mean}
+                  value={meanInput}
                   onChange={(e) => handleMeanChange(e.target.value)}
+                  onBlur={() => {
+                    if (!meanInput.trim()) {
+                      setMeanInput(state.mean.toString());
+                      setMeanError('');
+                    }
+                  }}
                   inputProps={{
                     step: 0.01,
                     'aria-label': 'Mean value',
@@ -142,6 +170,7 @@ export default function DistributionControls() {
                   setStdError('');
                   const numVal = val as number;
                   if (numVal > 0) {
+                    setStdInput(numVal.toString());
                     dispatch({ type: 'SET_STD', payload: numVal });
                   }
                 }}
@@ -154,8 +183,14 @@ export default function DistributionControls() {
               <Box>
                 <TextField
                   type="number"
-                  value={state.std}
+                  value={stdInput}
                   onChange={(e) => handleStdChange(e.target.value)}
+                  onBlur={() => {
+                    if (!stdInput.trim()) {
+                      setStdInput(state.std.toString());
+                      setStdError('');
+                    }
+                  }}
                   onKeyDown={(e) => {
                     // Prevent negative sign input
                     if (e.key === '-' || e.key === 'e' || e.key === 'E') {

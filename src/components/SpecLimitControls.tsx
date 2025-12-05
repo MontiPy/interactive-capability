@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Accordion,
   AccordionSummary,
@@ -22,10 +22,25 @@ export default function SpecLimitControls() {
   const { state, dispatch } = useApp();
   const [lslError, setLslError] = useState<string>('');
   const [uslError, setUslError] = useState<string>('');
+  const [lslInput, setLslInput] = useState(state.lsl.toString());
+  const [uslInput, setUslInput] = useState(state.usl.toString());
+
+  useEffect(() => {
+    setLslInput(state.lsl.toString());
+  }, [state.lsl]);
+
+  useEffect(() => {
+    setUslInput(state.usl.toString());
+  }, [state.usl]);
 
   const handleLslChange = (value: string) => {
+    setLslInput(value);
+    if (!value.trim()) {
+      setLslError('');
+      return;
+    }
     const num = parseFloat(value);
-    if (!value || !isFinite(num)) {
+    if (!isFinite(num)) {
       setLslError('LSL must be a finite number');
       return;
     }
@@ -38,8 +53,13 @@ export default function SpecLimitControls() {
   };
 
   const handleUslChange = (value: string) => {
+    setUslInput(value);
+    if (!value.trim()) {
+      setUslError('');
+      return;
+    }
     const num = parseFloat(value);
-    if (!value || !isFinite(num)) {
+    if (!isFinite(num)) {
       setUslError('USL must be a finite number');
       return;
     }
@@ -84,8 +104,14 @@ export default function SpecLimitControls() {
               <Box>
                 <TextField
                   type="number"
-                  value={state.lsl}
+                  value={lslInput}
                   onChange={(e) => handleLslChange(e.target.value)}
+                  onBlur={() => {
+                    if (!lslInput.trim()) {
+                      setLslInput(state.lsl.toString());
+                      setLslError('');
+                    }
+                  }}
                   inputProps={{
                     step: 0.1,
                     'aria-label': 'Lower spec limit',
@@ -109,7 +135,9 @@ export default function SpecLimitControls() {
                 value={state.lsl}
                 onChange={(_, val) => {
                   setLslError('');
-                  dispatch({ type: 'SET_LSL', payload: val as number });
+                  const numVal = val as number;
+                  setLslInput(numVal.toString());
+                  dispatch({ type: 'SET_LSL', payload: numVal });
                 }}
                 min={-10}
                 max={10}
@@ -135,8 +163,14 @@ export default function SpecLimitControls() {
               <Box>
                 <TextField
                   type="number"
-                  value={state.usl}
+                  value={uslInput}
                   onChange={(e) => handleUslChange(e.target.value)}
+                  onBlur={() => {
+                    if (!uslInput.trim()) {
+                      setUslInput(state.usl.toString());
+                      setUslError('');
+                    }
+                  }}
                   inputProps={{
                     step: 0.1,
                     'aria-label': 'Upper spec limit',
@@ -160,7 +194,9 @@ export default function SpecLimitControls() {
                 value={state.usl}
                 onChange={(_, val) => {
                   setUslError('');
-                  dispatch({ type: 'SET_USL', payload: val as number });
+                  const numVal = val as number;
+                  setUslInput(numVal.toString());
+                  dispatch({ type: 'SET_USL', payload: numVal });
                 }}
                 min={-10}
                 max={10}

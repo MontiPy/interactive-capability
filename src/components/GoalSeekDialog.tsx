@@ -265,6 +265,12 @@ export default function GoalSeekDialog({
             type="number"
             value={targetCpk}
             onChange={(e) => setTargetCpk(e.target.value)}
+            onBlur={() => {
+              if (!targetCpk.trim()) {
+                setTargetCpk('1.33');
+                setTargetError('');
+              }
+            }}
             error={!!targetError}
             helperText={targetError || 'Enter desired capability index (e.g., 1.33 for good capability)'}
             inputProps={{
