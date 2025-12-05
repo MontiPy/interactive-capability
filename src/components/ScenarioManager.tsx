@@ -32,7 +32,9 @@ import {
   Edit as EditIcon,
   Check as CheckIcon,
   Close as CloseIcon,
+  Calculate as CalculateIcon,
 } from '@mui/icons-material';
+import GoalSeekDialog from './GoalSeekDialog';
 import { useApp } from '../context/AppContext';
 import { computeStats } from '../utils/stats';
 
@@ -63,6 +65,8 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     lsl: 0,
     usl: 0,
   });
+  const [goalSeekDialogOpen, setGoalSeekDialogOpen] = useState(false);
+  const [goalSeekScenario, setGoalSeekScenario] = useState<typeof state.scenarios[0] | null>(null);
   const [newScenario, setNewScenario] = useState({
     name: '',
     mean: state.mean,
@@ -146,6 +150,28 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
 
   const handleCancelEdit = () => {
     setEditingScenarioId(null);
+  };
+
+  const handleOpenGoalSeek = (scenario: typeof state.scenarios[0]) => {
+    setGoalSeekScenario(scenario);
+    setGoalSeekDialogOpen(true);
+  };
+
+  const handleApplyGoalSeek = (updates: Partial<typeof state.scenarios[0]>) => {
+    if (goalSeekScenario) {
+      dispatch({
+        type: 'UPDATE_SCENARIO',
+        payload: {
+          id: goalSeekScenario.id,
+          updates,
+        },
+      });
+    }
+  };
+
+  const handleCloseGoalSeek = () => {
+    setGoalSeekDialogOpen(false);
+    setGoalSeekScenario(null);
   };
 
   const renderScenarioCard = (scenario: typeof state.scenarios[0]) => {
@@ -274,6 +300,17 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                     <Tooltip title="Edit">
                       <IconButton size="small" onClick={() => handleStartEdit(scenario)} aria-label="Edit scenario">
                         <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {fullView && (
+                    <Tooltip title="Goal Seek">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenGoalSeek(scenario)}
+                        aria-label="Goal seek for target Cpk"
+                      >
+                        <CalculateIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   )}
@@ -450,6 +487,16 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Goal Seek Dialog */}
+        {goalSeekScenario && (
+          <GoalSeekDialog
+            open={goalSeekDialogOpen}
+            scenario={goalSeekScenario}
+            onClose={handleCloseGoalSeek}
+            onApply={handleApplyGoalSeek}
+          />
+        )}
       </Box>
     );
   }

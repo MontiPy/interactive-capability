@@ -84,8 +84,9 @@ src/
 │   ├── ComparisonStatsTable.tsx    →  Multi-scenario comparison table
 │   ├── Chart.tsx                   →  Canvas-based chart (filters by activeTab)
 │   ├── StatsDisplay.tsx            →  Stats display with comparison mode
-│   ├── ScenarioManager.tsx         →  Enhanced with fullView & inline editing
-│   ├── PresetScenarioDialog.tsx    →  Load presets as scenarios (new)
+│   ├── ScenarioManager.tsx         →  Enhanced with fullView & inline editing & goal seek
+│   ├── PresetScenarioDialog.tsx    →  Load presets as scenarios
+│   ├── GoalSeekDialog.tsx          →  Goal seek UI for target Cpk optimization (new)
 │   ├── DistributionControls.tsx
 │   ├── SpecLimitControls.tsx
 │   ├── DisplayControls.tsx
@@ -96,6 +97,7 @@ src/
 │   └── Layout.tsx                  →  Main layout with responsive controls
 └── utils/
     ├── stats.ts          →  Pure statistical functions
+    ├── goalSeek.ts       →  Goal seek algorithms for Cpk optimization (new)
     ├── rendering.ts      →  Canvas rendering utilities
     ├── viewport.ts       →  Hybrid + multi-distribution viewport calculations
     └── presets.ts        →  Preset configurations & URL state
@@ -220,7 +222,28 @@ src/
 - **Accordion with smart expand**: Collapses when empty, expands when scenarios exist (Single tab)
 - **Empty state**: Helpful message with "Add New Scenario" button and "Go to Single Distribution" option
 
-### 8. Comparison Stats Table
+### 8. Goal Seek Optimization
+- **Target Cpk specification**: Input desired capability index (e.g., 1.33 for good capability)
+- **Dual adjustment modes**:
+  - **Adjust Mean (μ)**: Recenter process while keeping variation constant
+  - **Adjust Standard Deviation (σ)**: Reduce variation while keeping mean constant
+- **Real-time preview**: See calculated values before applying
+  - Green success box with new μ/σ values
+  - Delta indicators showing change from current (e.g., "Δ-0.250")
+  - Achieved Cpk display
+- **Feasibility checking**: Clear error messages when target unachievable
+- **Fallback suggestions**: Show best achievable Cpk when target impossible
+  - Displays centered mean with maximum achievable Cpk
+  - Shows required parameters if target too high for current constraints
+- **Visual feedback**: Color-coded preview (green for success, red Alert for errors)
+- **Integration**: Calculator icon (⚙️) button on scenario cards in Comparison tab (fullView mode)
+  - Positioned between Edit and Focus buttons
+- **Mathematical approach**: Closed-form analytical solutions (no iterative methods)
+  - Fast execution (<1ms)
+  - Deterministic results
+  - Comprehensive input validation (positive Cpk, valid std, LSL < USL)
+
+### 9. Comparison Stats Table
 - **Automatic display**: Shows in comparison tab when no scenario is focused
 - **Comprehensive metrics**: μ, σ, LSL, USL, Cp, Cpk, Pp, Ppk for all visible scenarios
 - **Color-coded borders**: Matches scenario card colors
@@ -230,7 +253,7 @@ src/
 - **Color-coded capability metrics**: Green (≥1.33), Yellow (1.0-1.33), Red (<1.0)
 - **Empty state**: Shows message when no visible scenarios
 
-### 9. Preset Menu with Previews
+### 10. Preset Menu with Previews
 - **Enhanced dropdown** with:
   - Active preset indicator (checkmark icon)
   - Preview chips showing Cp, Cpk, σ for each preset
@@ -238,19 +261,19 @@ src/
 - **Toast notification**: "Preset '{name}' loaded successfully" on selection
 - 5 preset configurations: Six Sigma, Tight Tolerance, Off-Center, Minimum Capability, Wide Tolerance
 
-### 10. Advanced Stats Dialog
+### 11. Advanced Stats Dialog
 - **Search/filter box** at top to filter metrics by keyword
 - **Quick navigation chips**: Jump to Basic, Performance, Six Sigma, Taguchi sections
 - **"So what?" helper text** under each metric explaining practical implications
 - Improved descriptions focusing on actionable insights
 
-### 11. Export Options (Enhanced)
+### 12. Export Options (Enhanced)
 - **PNG**: High-resolution chart image (1200x600)
 - **CSV**: Spreadsheet-ready metrics (all Cp, Cpk, Pp, Ppk, DPMO, etc.)
 - **JSON**: Full configuration + metrics for all scenarios (timestamp, distribution params, computed stats)
 - Export FAB has tooltip: "Export chart/metrics"
 
-### 12. Responsive Layout & Mobile Support
+### 13. Responsive Layout & Mobile Support
 - **Collapse left panel button** (chevron icon) for full-width chart mode on desktop
 - **Mobile drawer**: Left controls slide in from left on mobile/tablet
   - Hamburger menu icon in header
@@ -259,7 +282,7 @@ src/
 - **Expand button**: Floating button on left edge when panel collapsed
 - Fully responsive grid system maintains 40/60 split on desktop, full-width on mobile
 
-### 13. Accessibility Enhancements
+### 14. Accessibility Enhancements
 - **ARIA labels** on all interactive controls, including:
   - All help icon buttons with descriptive labels
   - Scenario action buttons (focus, visibility, duplicate, delete)
@@ -275,9 +298,13 @@ src/
   - Tests cover: basic calculations, edge cases (std=0, inverted limits), advanced metrics
 - `src/utils/viewport.test.ts` - Unit tests for viewport calculations
   - Tests cover: sign-aware padding, edge cases, multipliers, asymmetric distributions
-  - **NEW**: Multi-distribution viewport tests (9 new test cases)
+  - Multi-distribution viewport tests (9 test cases)
     - Single scenario, overlapping ranges, distant ranges
     - Hidden scenarios, mixed distributions, wide spec limits
+- `src/utils/goalSeek.test.ts` - Unit tests for goal seek algorithms (28 test cases)
+  - solveForMean: symmetric/asymmetric limits, infeasible targets, validation (11 tests)
+  - solveForStd: centered/off-center mean, boundary values, validation (12 tests)
+  - Edge cases: extreme Cpk values, NaN/Infinity, fallback behavior (5 tests)
 
 **Running Tests:**
 ```bash
@@ -286,7 +313,7 @@ npm test -- --run          # Single run
 npm test:ui                # Interactive UI
 ```
 
-All tests pass (38 tests total, including 9 new multi-distribution viewport tests).
+All tests pass (66 tests total: 38 existing + 28 goal seek tests).
 
 ## Development Workflow
 
