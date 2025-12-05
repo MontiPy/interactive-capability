@@ -1,4 +1,5 @@
-import { Box, Paper, Typography, Chip } from '@mui/material';
+import { Box, Paper, Typography, Chip, Button } from '@mui/material';
+import { Download as DownloadIcon } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { computeStats } from '../utils/stats';
 import { getCapabilityColor } from '../theme';
@@ -6,9 +7,10 @@ import ComparisonStatsTable from './ComparisonStatsTable';
 
 interface StatsDisplayProps {
   onOpenAdvanced: () => void;
+  onOpenExportMenu: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced }: StatsDisplayProps) {
+export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced, onOpenExportMenu }: StatsDisplayProps) {
   const { state } = useApp();
 
   // In comparison mode with no focused scenario, show comparison table
@@ -88,9 +90,13 @@ export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced }: StatsD
             />
           )}
         </Box>
-        {/* <Button size="small" onClick={onOpenAdvanced}>
-          View Advanced Stats
-        </Button> */}
+        <Button
+          size="small"
+          onClick={onOpenExportMenu}
+          endIcon={<DownloadIcon />}
+        >
+          Export
+        </Button>
       </Box>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <StatCard
