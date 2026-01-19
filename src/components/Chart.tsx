@@ -10,10 +10,10 @@ export default function Chart() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
 
-  // Validation
+  // Extract values from state for dependency tracking
+  const { mean, std, lsl, usl, display, scenarios, histogramData, activeTab, draggingLimit } = state;
+  
   useEffect(() => {
-    const { mean, std, lsl, usl } = state;
-
     if (!isFinite(mean)) {
       setValidationError('Mean must be a number.');
       return;
@@ -36,13 +36,11 @@ export default function Chart() {
     }
 
     setValidationError(null);
-  }, [state.mean, state.std, state.lsl, state.usl]);
+  }, [mean, std, lsl, usl]);
 
   // Render canvas
   useEffect(() => {
     if (!canvasRef.current || validationError) return;
-
-    const { mean, std, lsl, usl, display, scenarios, histogramData, activeTab } = state;
 
     // Use viewport values from context (already computed by hybrid auto-viewport)
     const displayMin = display.displayMin;
@@ -92,14 +90,14 @@ export default function Chart() {
       });
     });
   }, [
-    state.mean,
-    state.std,
-    state.lsl,
-    state.usl,
-    state.display,
-    state.scenarios,
-    state.histogramData,
-    state.activeTab,
+    mean,
+    std,
+    lsl,
+    usl,
+    display,
+    scenarios,
+    histogramData,
+    activeTab,
     validationError,
     canvasDimensions,
   ]);
@@ -156,30 +154,30 @@ export default function Chart() {
 
       setCanvasDimensions({ width, height });
     });
-  }, [state.scenarios.length]);
+  }, [scenarios.length]);
 
   // Handle draggable LSL/USL (only in single distribution mode)
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || validationError || state.activeTab !== 'single') return;
+    if (!canvas || validationError || activeTab !== 'single') return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!state.draggingLimit) return;
+      if (!draggingLimit) return;
 
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const width = rect.width;
 
       // Use viewport values from context
-      const displayMin = state.display.displayMin;
-      const displayMax = state.display.displayMax;
+      const viewportMin = display.displayMin;
+      const viewportMax = display.displayMax;
 
-      const range = displayMax - displayMin;
-      const value = displayMin + (x / width) * range;
+      const range = viewportMax - viewportMin;
+      const value = viewportMin + (x / width) * range;
 
-      if (state.draggingLimit === 'lsl') {
+      if (draggingLimit === 'lsl') {
         dispatch({ type: 'SET_LSL', payload: Math.round(value * 10) / 10 });
-      } else if (state.draggingLimit === 'usl') {
+      } else if (draggingLimit === 'usl') {
         dispatch({ type: 'SET_USL', payload: Math.round(value * 10) / 10 });
       }
     };
@@ -194,14 +192,14 @@ export default function Chart() {
       const width = rect.width;
 
       // Use viewport values from context
-      const displayMin = state.display.displayMin;
-      const displayMax = state.display.displayMax;
+      const viewportMin = display.displayMin;
+      const viewportMax = display.displayMax;
 
-      const range = displayMax - displayMin;
-      const xToPx = (val: number) => ((val - displayMin) / range) * width;
+      const range = viewportMax - viewportMin;
+      const xToPx = (val: number) => ((val - viewportMin) / range) * width;
 
-      const lslPx = xToPx(state.lsl);
-      const uslPx = xToPx(state.usl);
+      const lslPx = xToPx(lsl);
+      const uslPx = xToPx(usl);
 
       const tolerance = 10;
 
@@ -225,15 +223,15 @@ export default function Chart() {
       canvas.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('mouseleave', handleMouseUp);
     };
-  }, [state, dispatch, validationError]);
+  }, [lsl, usl, display, draggingLimit, activeTab, dispatch, validationError]);
 
   // Cursor change on hover (only in single distribution mode)
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || validationError || state.activeTab !== 'single') return;
+    if (!canvas || validationError || activeTab !== 'single') return;
 
     const handleMouseMoveHover = (e: MouseEvent) => {
-      if (state.draggingLimit) {
+      if (draggingLimit) {
         canvas.style.cursor = 'ew-resize';
         return;
       }
@@ -243,14 +241,14 @@ export default function Chart() {
       const width = rect.width;
 
       // Use viewport values from context
-      const displayMin = state.display.displayMin;
-      const displayMax = state.display.displayMax;
+      const viewportMin = display.displayMin;
+      const viewportMax = display.displayMax;
 
-      const range = displayMax - displayMin;
-      const xToPx = (val: number) => ((val - displayMin) / range) * width;
+      const range = viewportMax - viewportMin;
+      const xToPx = (val: number) => ((val - viewportMin) / range) * width;
 
-      const lslPx = xToPx(state.lsl);
-      const uslPx = xToPx(state.usl);
+      const lslPx = xToPx(lsl);
+      const uslPx = xToPx(usl);
 
       const tolerance = 10;
 
@@ -266,7 +264,7 @@ export default function Chart() {
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMoveHover);
     };
-  }, [state, validationError]);
+  }, [lsl, usl, display, draggingLimit, activeTab, validationError]);
 
   return (
     <Paper elevation={2} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>

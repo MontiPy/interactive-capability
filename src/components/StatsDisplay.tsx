@@ -6,11 +6,11 @@ import { getCapabilityColor } from '../theme';
 import ComparisonStatsTable from './ComparisonStatsTable';
 
 interface StatsDisplayProps {
-  onOpenAdvanced: () => void;
+  onOpenAdvanced?: () => void;
   onOpenExportMenu: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced, onOpenExportMenu }: StatsDisplayProps) {
+export default function StatsDisplay({ onOpenExportMenu }: StatsDisplayProps) {
   const { state } = useApp();
 
   // In comparison mode with no focused scenario, show comparison table
