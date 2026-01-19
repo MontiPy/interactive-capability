@@ -210,12 +210,14 @@ export function generateHistogram(
     return { bins: [], min: 0, max: 0 };
   }
 
+  const safeBins = Number.isFinite(numBins) && numBins > 0 ? Math.floor(numBins) : 1;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min;
-  const binWidth = range / numBins;
+  const safeRange = range === 0 ? 1 : range;
+  const binWidth = safeRange / safeBins;
 
-  const bins = Array.from({ length: numBins }, (_, i) => ({
+  const bins = Array.from({ length: safeBins }, (_, i) => ({
     start: min + i * binWidth,
     end: min + (i + 1) * binWidth,
     count: 0,
@@ -224,7 +226,7 @@ export function generateHistogram(
 
   // Count data points in each bin
   data.forEach((value) => {
-    const binIndex = Math.min(Math.floor((value - min) / binWidth), numBins - 1);
+    const binIndex = Math.min(Math.floor((value - min) / binWidth), safeBins - 1);
     bins[binIndex].count++;
   });
 

@@ -18,6 +18,17 @@ interface ExportMenuProps {
 export default function ExportMenu({ anchorEl, open, onClose }: ExportMenuProps) {
   const { state } = useApp();
   const [exportCanvas, setExportCanvas] = useState<HTMLCanvasElement | null>(null);
+  const isComparison = state.activeTab === 'comparison';
+  const focusedScenario = isComparison
+    ? state.scenarios.find((scenario) => scenario.id === state.focusedScenarioId)
+    : undefined;
+  const metricsSource = focusedScenario || {
+    mean: state.mean,
+    std: state.std,
+    lsl: state.lsl,
+    usl: state.usl,
+  };
+  const metricsLabel = focusedScenario ? focusedScenario.name : 'Primary Distribution';
 
   // Create a hidden canvas for export
   useEffect(() => {
@@ -37,14 +48,9 @@ export default function ExportMenu({ anchorEl, open, onClose }: ExportMenuProps)
     if (!exportCanvas) return;
 
     const { mean, std, lsl, usl, display, scenarios, histogramData } = state;
-
-    let displayMin = display.displayMin;
-    let displayMax = display.displayMax;
-
-    if (display.fitToMean) {
-      displayMin = mean - display.fitMultiplier * std;
-      displayMax = mean + display.fitMultiplier * std;
-    }
+    const displayMin = display.displayMin;
+    const displayMax = display.displayMax;
+    const exportScenarios = isComparison ? scenarios : [];
 
     const tickStep =
       display.tickStep && display.tickStep > 0
@@ -69,8 +75,10 @@ export default function ExportMenu({ anchorEl, open, onClose }: ExportMenuProps)
         tickStep,
         showGrid: display.showGrid,
         tickFormat: display.tickFormat,
-        scenarios,
+        scenarios: exportScenarios,
         histogramData,
+        showShading: !isComparison,
+        showPrimary: !isComparison,
       });
 
       exportAsPNG(exportCanvas);
@@ -80,7 +88,7 @@ export default function ExportMenu({ anchorEl, open, onClose }: ExportMenuProps)
   };
 
   const handleExportCSV = () => {
-    const { mean, std, lsl, usl } = state;
+    const { mean, std, lsl, usl } = metricsSource;
     const basicStats = computeStats(mean, std, lsl, usl);
     const advancedStats = computeAdvancedStats(mean, std, lsl, usl, undefined, state.target);
 
@@ -88,6 +96,7 @@ export default function ExportMenu({ anchorEl, open, onClose }: ExportMenuProps)
 
     const csv = [
       ['Metric', 'Value'],
+      ['Source', metricsLabel],
       ['Mean (μ)', mean],
       ['Std Dev (σ)', std],
       ['LSL', lsl],
@@ -121,12 +130,16 @@ export default function ExportMenu({ anchorEl, open, onClose }: ExportMenuProps)
   };
 
   const handleExportJSON = () => {
-    const { mean, std, lsl, usl, scenarios } = state;
+    const { mean, std, lsl, usl } = metricsSource;
+    const { scenarios } = state;
     const basicStats = computeStats(mean, std, lsl, usl);
     const advancedStats = computeAdvancedStats(mean, std, lsl, usl, undefined, state.target);
 
     const data = {
       timestamp: new Date().toISOString(),
+      source: focusedScenario
+        ? { type: 'scenario', id: focusedScenario.id, name: focusedScenario.name }
+        : { type: 'primary' },
       distribution: { mean, std, lsl, usl, target: state.target },
       metrics: {
         basic: basicStats,

@@ -7,6 +7,7 @@ import {
   Box,
   Typography,
   TextField,
+  Chip,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -27,12 +28,24 @@ interface AdvancedStatsDialogProps {
 
 export default function AdvancedStatsDialog({ open, onClose }: AdvancedStatsDialogProps) {
   const { state, dispatch } = useApp();
+  const isComparison = state.activeTab === 'comparison';
+  const focusedScenario = isComparison
+    ? state.scenarios.find((scenario) => scenario.id === state.focusedScenarioId)
+    : undefined;
+  const displayLabel = focusedScenario?.name || 'Primary Distribution';
+  const colorAccent = focusedScenario?.color;
+  const statsSource = focusedScenario || {
+    mean: state.mean,
+    std: state.std,
+    lsl: state.lsl,
+    usl: state.usl,
+  };
 
   const advancedStats = computeAdvancedStats(
-    state.mean,
-    state.std,
-    state.lsl,
-    state.usl,
+    statsSource.mean,
+    statsSource.std,
+    statsSource.lsl,
+    statsSource.usl,
     undefined,
     state.target
   );
@@ -73,8 +86,19 @@ export default function AdvancedStatsDialog({ open, onClose }: AdvancedStatsDial
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="h6">Advanced Statistical Metrics</Typography>
+          {focusedScenario && (
+            <Chip
+              label={`Focused: ${displayLabel}`}
+              size="small"
+              sx={{
+                bgcolor: colorAccent || 'primary.main',
+                color: '#fff',
+                fontWeight: 600,
+              }}
+            />
+          )}
         </Box>
       </DialogTitle>
       <DialogContent>

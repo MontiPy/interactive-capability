@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -37,8 +37,18 @@ export default function DataImportDialog({ open, onClose }: DataImportDialogProp
     invalidCount: number;
   } | null>(null);
 
+  useEffect(() => {
+    if (!open) {
+      setTabValue(0);
+      setPastedData('');
+      setError(null);
+      setPreview(null);
+    }
+  }, [open]);
+
   const parseData = (text: string): number[] | null => {
     try {
+      setPreview(null);
       // Split by commas, newlines, spaces, or tabs
       const allValues = text.split(/[\s,\n\t]+/).map((v) => v.trim()).filter((v) => v.length > 0);
 
@@ -56,6 +66,7 @@ export default function DataImportDialog({ open, onClose }: DataImportDialogProp
 
       if (validValues.length < 2) {
         setError('Need at least 2 valid data points');
+        setPreview(null);
         return null;
       }
 
@@ -76,8 +87,15 @@ export default function DataImportDialog({ open, onClose }: DataImportDialogProp
       return validValues;
     } catch (e) {
       setError('Failed to parse data');
+      setPreview(null);
       return null;
     }
+  };
+
+  const handleTabChange = (_: unknown, value: number) => {
+    setTabValue(value);
+    setError(null);
+    setPreview(null);
   };
 
   const handlePreview = () => {
@@ -131,8 +149,12 @@ export default function DataImportDialog({ open, onClose }: DataImportDialogProp
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
+    setPreview(null);
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      event.target.value = '';
+      return;
+    }
 
     try {
       const text = await file.text();
@@ -161,6 +183,8 @@ export default function DataImportDialog({ open, onClose }: DataImportDialogProp
       onClose();
     } catch (e) {
       setError('Failed to read file');
+    } finally {
+      event.target.value = '';
     }
   };
 
@@ -176,7 +200,7 @@ export default function DataImportDialog({ open, onClose }: DataImportDialogProp
       <DialogTitle>Import Real Data</DialogTitle>
       <DialogContent>
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-          <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
+          <Tabs value={tabValue} onChange={handleTabChange}>
             <Tab label="Paste Data" />
             <Tab label="Upload File" />
           </Tabs>

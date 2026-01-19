@@ -14,23 +14,12 @@ import {
 import { presets } from '../utils/presets';
 import { computeStats } from '../utils/stats';
 import { useApp } from '../context/AppContext';
+import { SCENARIO_COLORS } from '../constants/scenarioColors';
 
 interface PresetScenarioDialogProps {
   open: boolean;
   onClose: () => void;
 }
-
-const SCENARIO_COLORS = [
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#7f7f7f',
-  '#bcbd22',
-  '#17becf',
-];
 
 export default function PresetScenarioDialog({ open, onClose }: PresetScenarioDialogProps) {
   const { state, dispatch } = useApp();

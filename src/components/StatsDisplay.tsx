@@ -10,11 +10,15 @@ interface StatsDisplayProps {
   onOpenExportMenu: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced, onOpenExportMenu }: StatsDisplayProps) {
+export default function StatsDisplay({ onOpenAdvanced, onOpenExportMenu }: StatsDisplayProps) {
   const { state } = useApp();
+  const isComparison = state.activeTab === 'comparison';
+  const focusedScenario = isComparison
+    ? state.scenarios.find((scenario) => scenario.id === state.focusedScenarioId)
+    : undefined;
 
   // In comparison mode with no focused scenario, show comparison table
-  if (state.activeTab === 'comparison' && !state.focusedScenarioId) {
+  if (isComparison && !focusedScenario) {
     return <ComparisonStatsTable />;
   }
 
@@ -23,21 +27,16 @@ export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced, onOpenEx
   let displayLabel = 'Primary Distribution';
   let colorAccent: string | undefined;
 
-  if (state.focusedScenarioId) {
-    // Show focused scenario metrics
-    const focusedScenario = state.scenarios.find((s) => s.id === state.focusedScenarioId);
-    if (focusedScenario) {
-      stats = computeStats(
-        focusedScenario.mean,
-        focusedScenario.std,
-        focusedScenario.lsl,
-        focusedScenario.usl
-      );
-      displayLabel = focusedScenario.name;
-      colorAccent = focusedScenario.color;
-    } else {
-      stats = computeStats(state.mean, state.std, state.lsl, state.usl);
-    }
+  if (focusedScenario) {
+    // Show focused scenario metrics (comparison mode only)
+    stats = computeStats(
+      focusedScenario.mean,
+      focusedScenario.std,
+      focusedScenario.lsl,
+      focusedScenario.usl
+    );
+    displayLabel = focusedScenario.name;
+    colorAccent = focusedScenario.color;
   } else {
     // Show primary distribution metrics
     stats = computeStats(state.mean, state.std, state.lsl, state.usl);
@@ -78,7 +77,7 @@ export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced, onOpenEx
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography variant="h6">Capability Metrics</Typography>
-          {state.focusedScenarioId && (
+          {focusedScenario && (
             <Chip
               label={`Focused: ${displayLabel}`}
               size="small"
@@ -90,13 +89,18 @@ export default function StatsDisplay({ onOpenAdvanced: _onOpenAdvanced, onOpenEx
             />
           )}
         </Box>
-        <Button
-          size="small"
-          onClick={onOpenExportMenu}
-          endIcon={<DownloadIcon />}
-        >
-          Export
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button size="small" onClick={onOpenAdvanced}>
+            Advanced
+          </Button>
+          <Button
+            size="small"
+            onClick={onOpenExportMenu}
+            endIcon={<DownloadIcon />}
+          >
+            Export
+          </Button>
+        </Box>
       </Box>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <StatCard
