@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Accordion,
   AccordionSummary,
@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   TextField,
   Stack,
@@ -38,6 +39,7 @@ import GoalSeekDialog from './GoalSeekDialog';
 import { useApp } from '../context/AppContext';
 import { computeStats } from '../utils/stats';
 import { getNextScenarioColor } from '../constants';
+import type { Scenario } from '../types';
 
 interface ScenarioManagerProps {
   fullView?: boolean;
@@ -61,7 +63,9 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     usl: '0',
   });
   const [goalSeekDialogOpen, setGoalSeekDialogOpen] = useState(false);
-  const [goalSeekScenario, setGoalSeekScenario] = useState<typeof state.scenarios[0] | null>(null);
+  const [goalSeekScenario, setGoalSeekScenario] = useState<Scenario | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [scenarioToDelete, setScenarioToDelete] = useState<Scenario | null>(null);
   const [newScenario, setNewScenario] = useState({
     name: '',
     mean: state.mean,
@@ -69,6 +73,25 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     lsl: state.lsl,
     usl: state.usl,
   });
+
+  // Delete confirmation handlers
+  const handleDeleteClick = useCallback((scenario: Scenario) => {
+    setScenarioToDelete(scenario);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (scenarioToDelete) {
+      dispatch({ type: 'DELETE_SCENARIO', payload: scenarioToDelete.id });
+    }
+    setDeleteConfirmOpen(false);
+    setScenarioToDelete(null);
+  }, [scenarioToDelete, dispatch]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteConfirmOpen(false);
+    setScenarioToDelete(null);
+  }, []);
 
   const handleAddScenario = () => {
     dispatch({
@@ -102,7 +125,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setDialogOpen(true);
   };
 
-  const handleDuplicateScenario = (scenario: typeof state.scenarios[0]) => {
+  const handleDuplicateScenario = (scenario: Scenario) => {
     dispatch({
       type: 'ADD_SCENARIO',
       payload: {
@@ -117,7 +140,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     });
   };
 
-  const handleStartEdit = (scenario: typeof state.scenarios[0]) => {
+  const handleStartEdit = (scenario: Scenario) => {
     setEditingScenarioId(scenario.id);
     setEditValues({
       name: scenario.name,
@@ -151,12 +174,12 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setEditingScenarioId(null);
   };
 
-  const handleOpenGoalSeek = (scenario: typeof state.scenarios[0]) => {
+  const handleOpenGoalSeek = (scenario: Scenario) => {
     setGoalSeekScenario(scenario);
     setGoalSeekDialogOpen(true);
   };
 
-  const handleApplyGoalSeek = (updates: Partial<typeof state.scenarios[0]>) => {
+  const handleApplyGoalSeek = (updates: Partial<Scenario>) => {
     if (goalSeekScenario) {
       dispatch({
         type: 'UPDATE_SCENARIO',
@@ -173,7 +196,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setGoalSeekScenario(null);
   };
 
-  const renderScenarioCard = (scenario: typeof state.scenarios[0]) => {
+  const renderScenarioCard = (scenario: Scenario) => {
     const stats = computeStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl);
     const isEditing = fullView && editingScenarioId === scenario.id;
     const cardPadding = fullView ? 2 : 1.5;
@@ -410,10 +433,9 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   <Tooltip title="Delete">
                     <IconButton
                       size="small"
-                      onClick={() =>
-                        dispatch({ type: 'DELETE_SCENARIO', payload: scenario.id })
-                      }
+                      onClick={() => handleDeleteClick(scenario)}
                       aria-label="Delete scenario"
+                      color="error"
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -571,6 +593,29 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
             onApply={handleApplyGoalSeek}
           />
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={handleDeleteCancel}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">
+            Delete Scenario?
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Are you sure you want to delete "{scenarioToDelete?.name}"? This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel}>Cancel</Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
@@ -689,6 +734,29 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
             <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleAddScenario} variant="contained">
               Add
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={handleDeleteCancel}
+          aria-labelledby="delete-dialog-title-accordion"
+          aria-describedby="delete-dialog-description-accordion"
+        >
+          <DialogTitle id="delete-dialog-title-accordion">
+            Delete Scenario?
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description-accordion">
+              Are you sure you want to delete "{scenarioToDelete?.name}"? This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel}>Cancel</Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+              Delete
             </Button>
           </DialogActions>
         </Dialog>
