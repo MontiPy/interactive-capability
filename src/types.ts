@@ -48,6 +48,14 @@ export interface DisplaySettings {
   fitMultiplier: number;
 }
 
+// Undo history item
+export interface UndoItem {
+  type: 'DELETE_SCENARIO';
+  scenario: Scenario;
+  index: number;
+  timestamp: number;
+}
+
 // Application state
 export interface AppState {
   // Primary distribution
@@ -69,6 +77,9 @@ export interface AppState {
   // UI state
   draggingLimit: 'lsl' | 'usl' | null;
   activeTab: 'single' | 'comparison'; // Tab navigation state
+  
+  // Undo functionality
+  lastDeletedScenario: UndoItem | null;
 }
 
 export type AppAction =
@@ -81,6 +92,8 @@ export type AppAction =
   | { type: 'ADD_SCENARIO'; payload: Omit<Scenario, 'id'> }
   | { type: 'UPDATE_SCENARIO'; payload: { id: string; updates: Partial<Scenario> } }
   | { type: 'DELETE_SCENARIO'; payload: string }
+  | { type: 'UNDO_DELETE_SCENARIO' }
+  | { type: 'CLEAR_UNDO' }
   | { type: 'TOGGLE_SCENARIO'; payload: string }
   | { type: 'SET_ACTIVE_SCENARIO'; payload: string | null }
   | { type: 'SET_FOCUSED_SCENARIO'; payload: string | null }

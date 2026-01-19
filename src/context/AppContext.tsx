@@ -26,6 +26,7 @@ const initialState: AppState = {
   histogramData: null,
   draggingLimit: null,
   activeTab: 'single',
+  lastDeletedScenario: null,
 };
 
 // Helper to apply auto-range viewport when enabled
@@ -108,15 +109,51 @@ function appReducer(state: AppState, action: AppAction): AppState {
       // Trigger viewport recalculation in comparison mode
       return applyAutoRangeIfEnabled(nextState);
 
-    case 'DELETE_SCENARIO':
+    case 'DELETE_SCENARIO': {
+      const scenarioIndex = state.scenarios.findIndex((s) => s.id === action.payload);
+      const deletedScenario = state.scenarios[scenarioIndex];
+      
+      if (!deletedScenario) return state;
+      
       nextState = {
         ...state,
         scenarios: state.scenarios.filter((s) => s.id !== action.payload),
         activeScenarioId:
           state.activeScenarioId === action.payload ? null : state.activeScenarioId,
+        focusedScenarioId:
+          state.focusedScenarioId === action.payload ? null : state.focusedScenarioId,
+        lastDeletedScenario: {
+          type: 'DELETE_SCENARIO',
+          scenario: deletedScenario,
+          index: scenarioIndex,
+          timestamp: Date.now(),
+        },
       };
       // Trigger viewport recalculation in comparison mode
       return applyAutoRangeIfEnabled(nextState);
+    }
+
+    case 'UNDO_DELETE_SCENARIO': {
+      if (!state.lastDeletedScenario) return state;
+      
+      const { scenario, index } = state.lastDeletedScenario;
+      const newScenarios = [...state.scenarios];
+      
+      // Insert the scenario back at its original index (or at the end if index is out of bounds)
+      const insertIndex = Math.min(index, newScenarios.length);
+      newScenarios.splice(insertIndex, 0, scenario);
+      
+      nextState = {
+        ...state,
+        scenarios: newScenarios,
+        lastDeletedScenario: null,
+      };
+      // Trigger viewport recalculation
+      return applyAutoRangeIfEnabled(nextState);
+    }
+
+    case 'CLEAR_UNDO':
+      return { ...state, lastDeletedScenario: null };
 
     case 'TOGGLE_SCENARIO':
       nextState = {

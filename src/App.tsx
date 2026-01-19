@@ -1,10 +1,10 @@
-import { Box, Snackbar, Alert } from '@mui/material';
+import { Box, Snackbar, Alert, Button } from '@mui/material';
 import Chart from './components/Chart';
 import StatsDisplay from './components/StatsDisplay';
 import ExportMenu from './components/ExportMenu';
 import DataImportDialog from './components/DataImportDialog';
 import AdvancedStatsDialog from './components/AdvancedStatsDialog';
-import React, { Suspense, useState, useCallback, useMemo } from 'react';
+import React, { Suspense, useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import ComparisonPanel from './components/ComparisonPanel';
 import Layout from './components/Layout';
 import { useApp } from './context/AppContext';
@@ -12,7 +12,7 @@ import { useApp } from './context/AppContext';
 const SingleDistributionPanel = React.lazy(() => import('./components/SingleDistributionPanel'));
 
 export default function App() {
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   const [dataImportOpen, setDataImportOpen] = useState(false);
   const [advancedStatsOpen, setAdvancedStatsOpen] = useState(false);
@@ -21,6 +21,8 @@ export default function App() {
     message: '',
     severity: 'success',
   });
+  const [undoSnackbarOpen, setUndoSnackbarOpen] = useState(false);
+  const lastUndoTimestamp = useRef<number | null>(null);
 
   // Memoized callbacks to prevent unnecessary re-renders
   const handleSnackbarClose = useCallback(() => {
@@ -40,6 +42,33 @@ export default function App() {
     setExportMenuAnchor(e.currentTarget);
   }, []);
   const handleScenarioAdded = useCallback(() => showSnackbar('Added to Scenario Comparison', 'success'), [showSnackbar]);
+
+  // Handle undo snackbar
+  const handleUndoSnackbarClose = useCallback(() => {
+    setUndoSnackbarOpen(false);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    dispatch({ type: 'UNDO_DELETE_SCENARIO' });
+    setUndoSnackbarOpen(false);
+    showSnackbar('Scenario restored', 'success');
+  }, [dispatch, showSnackbar]);
+
+  // Show undo snackbar when a scenario is deleted
+  useEffect(() => {
+    if (state.lastDeletedScenario && state.lastDeletedScenario.timestamp !== lastUndoTimestamp.current) {
+      lastUndoTimestamp.current = state.lastDeletedScenario.timestamp;
+      setUndoSnackbarOpen(true);
+      
+      // Auto-hide after 6 seconds and clear the undo item
+      const timeout = setTimeout(() => {
+        setUndoSnackbarOpen(false);
+        dispatch({ type: 'CLEAR_UNDO' });
+      }, 6000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [state.lastDeletedScenario, dispatch]);
 
   // Memoize controls content to prevent unnecessary re-renders
   const controlsContent = useMemo(() => state.activeTab === 'single' ? (
@@ -96,6 +125,25 @@ export default function App() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Undo deletion snackbar */}
+      <Snackbar
+        open={undoSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleUndoSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        message={`Deleted "${state.lastDeletedScenario?.scenario.name}"`}
+        action={
+          <Button
+            color="secondary"
+            size="small"
+            onClick={handleUndo}
+            sx={{ fontWeight: 600 }}
+          >
+            Undo
+          </Button>
+        }
+      />
     </>
   );
 }
