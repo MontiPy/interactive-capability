@@ -98,7 +98,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       }
       return nextState;
 
-    case 'ADD_SCENARIO':
+    case 'ADD_SCENARIO': {
       const newScenario = {
         ...action.payload,
         id: `scenario-${Date.now()}-${Math.random()}`,
@@ -107,6 +107,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         scenarios: [...state.scenarios, newScenario],
       };
+    }
 
     case 'UPDATE_SCENARIO':
       nextState = {
@@ -194,7 +195,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       // Trigger viewport recalculation when switching tabs
       return applyAutoRangeIfEnabled(nextState);
 
-    case 'ADD_CURRENT_AS_SCENARIO':
+    case 'ADD_CURRENT_AS_SCENARIO': {
       const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
       const scenarioFromCurrent = {
         id: `scenario-${Date.now()}-${Math.random()}`,
@@ -213,8 +214,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
       // Trigger viewport recalculation for comparison mode
       return applyAutoRangeIfEnabled(nextState);
+    }
 
-    case 'IMPORT_DATA_AS_SCENARIO':
+    case 'IMPORT_DATA_AS_SCENARIO': {
       const importColorIndex = state.scenarios.length % SCENARIO_COLORS.length;
       const importedScenario = {
         id: `scenario-${Date.now()}-${Math.random()}`,
@@ -232,8 +234,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
       // Trigger viewport recalculation for comparison mode
       return applyAutoRangeIfEnabled(nextState);
+    }
 
-    case 'ADD_NEW_SCENARIO':
+    case 'ADD_NEW_SCENARIO': {
       const newColorIndex = state.scenarios.length % SCENARIO_COLORS.length;
       const defaultScenario = {
         id: `scenario-${Date.now()}-${Math.random()}`,
@@ -251,6 +254,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
       // Trigger viewport recalculation for comparison mode
       return applyAutoRangeIfEnabled(nextState);
+    }
 
     default:
       return state;
@@ -287,6 +291,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useApp() {
   const context = useContext(AppContext);
   if (!context) {

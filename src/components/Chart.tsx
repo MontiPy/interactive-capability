@@ -5,6 +5,7 @@ import { renderPlot, autoTickStep } from '../utils/rendering';
 
 export default function Chart() {
   const { state, dispatch } = useApp();
+  const { mean, std, lsl, usl, display, scenarios, histogramData, activeTab } = state;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -12,8 +13,6 @@ export default function Chart() {
 
   // Validation
   useEffect(() => {
-    const { mean, std, lsl, usl } = state;
-
     if (!isFinite(mean)) {
       setValidationError('Mean must be a number.');
       return;
@@ -36,13 +35,11 @@ export default function Chart() {
     }
 
     setValidationError(null);
-  }, [state.mean, state.std, state.lsl, state.usl]);
+  }, [mean, std, lsl, usl]);
 
   // Render canvas
   useEffect(() => {
     if (!canvasRef.current || validationError) return;
-
-    const { mean, std, lsl, usl, display, scenarios, histogramData, activeTab } = state;
 
     // Use viewport values from context (already computed by hybrid auto-viewport)
     const displayMin = display.displayMin;
@@ -92,14 +89,14 @@ export default function Chart() {
       });
     });
   }, [
-    state.mean,
-    state.std,
-    state.lsl,
-    state.usl,
-    state.display,
-    state.scenarios,
-    state.histogramData,
-    state.activeTab,
+    mean,
+    std,
+    lsl,
+    usl,
+    display,
+    scenarios,
+    histogramData,
+    activeTab,
     validationError,
     canvasDimensions,
   ]);
