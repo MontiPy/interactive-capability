@@ -2,18 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import { AppState, AppAction } from '../types';
 import { loadFromURL, saveToURL } from '../utils/presets';
 import { computeHybridViewport, computeFitToMeanViewport, computeMultiDistributionViewport } from '../utils/viewport';
-
-const SCENARIO_COLORS = [
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#7f7f7f',
-  '#bcbd22',
-  '#17becf',
-];
+import { getNextScenarioColor, DEFAULT_DISTRIBUTION } from '../constants';
 
 const initialState: AppState = {
   mean: 0,
@@ -196,7 +185,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return applyAutoRangeIfEnabled(nextState);
 
     case 'ADD_CURRENT_AS_SCENARIO': {
-      const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
       const scenarioFromCurrent = {
         id: `scenario-${Date.now()}-${Math.random()}`,
         name: action.payload || `Scenario ${state.scenarios.length + 1}`,
@@ -204,7 +192,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         std: state.std,
         lsl: state.lsl,
         usl: state.usl,
-        color: SCENARIO_COLORS[colorIndex],
+        color: getNextScenarioColor(state.scenarios.length),
         visible: true,
       };
       nextState = {
@@ -217,7 +205,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case 'IMPORT_DATA_AS_SCENARIO': {
-      const importColorIndex = state.scenarios.length % SCENARIO_COLORS.length;
       const importedScenario = {
         id: `scenario-${Date.now()}-${Math.random()}`,
         name: action.payload.name || `Imported Scenario ${state.scenarios.length + 1}`,
@@ -225,7 +212,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         std: action.payload.data.std,
         lsl: state.lsl, // Use current LSL/USL as defaults
         usl: state.usl,
-        color: SCENARIO_COLORS[importColorIndex],
+        color: getNextScenarioColor(state.scenarios.length),
         visible: true,
       };
       nextState = {
@@ -237,15 +224,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
     }
 
     case 'ADD_NEW_SCENARIO': {
-      const newColorIndex = state.scenarios.length % SCENARIO_COLORS.length;
       const defaultScenario = {
         id: `scenario-${Date.now()}-${Math.random()}`,
         name: `Scenario ${state.scenarios.length + 1}`,
-        mean: 0,
-        std: 1,
-        lsl: -3,
-        usl: 3,
-        color: SCENARIO_COLORS[newColorIndex],
+        mean: DEFAULT_DISTRIBUTION.mean,
+        std: DEFAULT_DISTRIBUTION.std,
+        lsl: DEFAULT_DISTRIBUTION.lsl,
+        usl: DEFAULT_DISTRIBUTION.usl,
+        color: getNextScenarioColor(state.scenarios.length),
         visible: true,
       };
       nextState = {
