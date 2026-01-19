@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Accordion,
   AccordionSummary,
@@ -92,6 +92,20 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setDeleteConfirmOpen(false);
     setScenarioToDelete(null);
   }, []);
+
+  // Keyboard shortcut: Escape to cancel editing
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (editingScenarioId) {
+          handleCancelEdit();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingScenarioId]);
 
   const handleAddScenario = () => {
     dispatch({

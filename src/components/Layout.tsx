@@ -7,13 +7,14 @@ import {
   useMediaQuery,
   useTheme,
   Tooltip,
+  Link,
 } from '@mui/material';
 import {
   ChevronLeft as CollapseIcon,
   ChevronRight as ExpandIcon,
   Menu as MenuIcon,
 } from '@mui/icons-material';
-import { useState, ReactNode } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import TabNavigation from './TabNavigation';
 import PresetsMenu from './PresetsMenu';
 import { useApp } from '../context/AppContext';
@@ -30,12 +31,27 @@ export default function Layout({ controlsContent, children }: LayoutProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+  // Keyboard shortcut: Escape closes mobile drawer
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && mobileDrawerOpen) {
+        setMobileDrawerOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mobileDrawerOpen]);
+
   const desktopControls = (
     <Grid
       item
       xs={12}
       md={4}
       lg={4.8}
+      component="aside"
+      role="complementary"
+      aria-label="Distribution controls"
       sx={{
         height: '100%',
         minHeight: 0,
@@ -74,6 +90,8 @@ export default function Layout({ controlsContent, children }: LayoutProps) {
       onClose={() => setMobileDrawerOpen(false)}
       PaperProps={{
         sx: { width: '85%', maxWidth: 400, p: 2 },
+        role: 'navigation',
+        'aria-label': 'Controls panel',
       }}
     >
       {controlsContent}
@@ -82,9 +100,29 @@ export default function Layout({ controlsContent, children }: LayoutProps) {
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Skip to main content link for accessibility */}
+      <Link
+        href="#main-content"
+        sx={{
+          position: 'absolute',
+          left: '-9999px',
+          zIndex: 9999,
+          padding: 2,
+          bgcolor: 'primary.main',
+          color: 'primary.contrastText',
+          '&:focus': {
+            left: 0,
+            top: 0,
+          },
+        }}
+      >
+        Skip to main content
+      </Link>
+
       {/* Header */}
       <Box
         component="header"
+        role="banner"
         sx={{
           px: 3,
           py: 1.5,
@@ -115,9 +153,14 @@ export default function Layout({ controlsContent, children }: LayoutProps) {
       </Box>
 
       {/* Main Content */}
-      <Box sx={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+      <Box 
+        component="main" 
+        id="main-content" 
+        role="main"
+        sx={{ flex: 1, overflow: 'hidden', minHeight: 0 }}
+      >
         <Grid container sx={{ height: '100%', minHeight: 0 }}>
-          {/* Left Column (Desktop) */}
+          {/* Left Column (Desktop) - Controls Panel */}
           {!isMobile && !leftPanelCollapsed && desktopControls}
 
           {/* Expand Button (Desktop) */}

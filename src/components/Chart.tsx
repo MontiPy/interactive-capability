@@ -273,9 +273,15 @@ export default function Chart() {
           {validationError}
         </Alert>
       )}
-      <Box ref={containerRef} sx={{ position: 'relative', width: '100%', flex: 1, minHeight: 0 }}>
+      <Box 
+        ref={containerRef} 
+        sx={{ position: 'relative', width: '100%', flex: 1, minHeight: 0 }}
+        role="img"
+        aria-label={`Normal distribution chart showing process capability. Mean: ${mean.toFixed(2)}, Standard deviation: ${std.toFixed(2)}, LSL: ${lsl.toFixed(2)}, USL: ${usl.toFixed(2)}`}
+      >
         <canvas
           ref={canvasRef}
+          aria-hidden="true"
           style={{
             border: '1px solid #e1e1e1',
             borderRadius: 6,
