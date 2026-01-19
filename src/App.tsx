@@ -68,6 +68,7 @@ export default function App() {
       
       return () => clearTimeout(timeout);
     }
+    return undefined;
   }, [state.lastDeletedScenario, dispatch]);
 
   // Memoize controls content to prevent unnecessary re-renders

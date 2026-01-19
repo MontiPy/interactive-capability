@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Paper, Typography, Button, Alert } from '@mui/material';
 import { Refresh as RefreshIcon } from '@mui/icons-material';
 
@@ -70,7 +70,7 @@ export class ErrorBoundary extends Component<Props, State> {
               An unexpected error occurred. You can try refreshing the page or resetting this component.
             </Typography>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <Box
                 sx={{
                   mb: 3,
