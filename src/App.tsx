@@ -4,9 +4,9 @@ import StatsDisplay from './components/StatsDisplay';
 import ExportMenu from './components/ExportMenu';
 import DataImportDialog from './components/DataImportDialog';
 import AdvancedStatsDialog from './components/AdvancedStatsDialog';
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useCallback, useMemo } from 'react';
 import ComparisonPanel from './components/ComparisonPanel';
-import Layout from './components/Layout'; // Import the new Layout component
+import Layout from './components/Layout';
 import { useApp } from './context/AppContext';
 
 const SingleDistributionPanel = React.lazy(() => import('./components/SingleDistributionPanel'));
@@ -22,27 +22,39 @@ export default function App() {
     severity: 'success',
   });
 
-  const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
-  };
+  // Memoized callbacks to prevent unnecessary re-renders
+  const handleSnackbarClose = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  }, []);
 
-  const showSnackbar = (message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'success') => {
+  const showSnackbar = useCallback((message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'success') => {
     setSnackbar({ open: true, message, severity });
-  };
+  }, []);
 
-  const controlsContent = state.activeTab === 'single' ? (
+  const handleOpenDataImport = useCallback(() => setDataImportOpen(true), []);
+  const handleCloseDataImport = useCallback(() => setDataImportOpen(false), []);
+  const handleOpenAdvancedStats = useCallback(() => setAdvancedStatsOpen(true), []);
+  const handleCloseAdvancedStats = useCallback(() => setAdvancedStatsOpen(false), []);
+  const handleCloseExportMenu = useCallback(() => setExportMenuAnchor(null), []);
+  const handleOpenExportMenu = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    setExportMenuAnchor(e.currentTarget);
+  }, []);
+  const handleScenarioAdded = useCallback(() => showSnackbar('Added to Scenario Comparison', 'success'), [showSnackbar]);
+
+  // Memoize controls content to prevent unnecessary re-renders
+  const controlsContent = useMemo(() => state.activeTab === 'single' ? (
     <Suspense fallback={<div />}> 
       <SingleDistributionPanel
-        onImportData={() => setDataImportOpen(true)}
-        onAdvancedStats={() => setAdvancedStatsOpen(true)}
-        onScenarioAdded={() => showSnackbar('Added to Scenario Comparison', 'success')}
+        onImportData={handleOpenDataImport}
+        onAdvancedStats={handleOpenAdvancedStats}
+        onScenarioAdded={handleScenarioAdded}
       />
     </Suspense>
   ) : (
     <ComparisonPanel
-      onImportData={() => setDataImportOpen(true)}
+      onImportData={handleOpenDataImport}
     />
-  );
+  ), [state.activeTab, handleOpenDataImport, handleOpenAdvancedStats, handleScenarioAdded]);
 
   return (
     <>
@@ -52,8 +64,8 @@ export default function App() {
         </Box>
         <Box sx={{ flex: '0 0 auto' }}>
           <StatsDisplay 
-            onOpenAdvanced={() => setAdvancedStatsOpen(true)}
-            onOpenExportMenu={(e) => setExportMenuAnchor(e.currentTarget)}
+            onOpenAdvanced={handleOpenAdvancedStats}
+            onOpenExportMenu={handleOpenExportMenu}
           />
         </Box>
       </Layout>
@@ -61,17 +73,17 @@ export default function App() {
       <ExportMenu
         anchorEl={exportMenuAnchor}
         open={Boolean(exportMenuAnchor)}
-        onClose={() => setExportMenuAnchor(null)}
+        onClose={handleCloseExportMenu}
       />
 
       <DataImportDialog
         open={dataImportOpen}
-        onClose={() => setDataImportOpen(false)}
+        onClose={handleCloseDataImport}
       />
 
       <AdvancedStatsDialog
         open={advancedStatsOpen}
-        onClose={() => setAdvancedStatsOpen(false)}
+        onClose={handleCloseAdvancedStats}
       />
 
       <Snackbar

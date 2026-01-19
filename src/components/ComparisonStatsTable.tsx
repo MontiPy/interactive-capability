@@ -1,3 +1,4 @@
+import { useMemo, useCallback, memo } from 'react';
 import {
   Table,
   TableBody,
@@ -14,11 +15,32 @@ import {
 import { RadioButtonChecked as FocusedIcon } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { computeStats, computeAdvancedStats } from '../utils/stats';
+import { CAPABILITY_THRESHOLDS } from '../constants';
 
-export default function ComparisonStatsTable() {
+export default memo(function ComparisonStatsTable() {
   const { state, dispatch } = useApp();
 
-  const visibleScenarios = state.scenarios.filter((s) => s.visible);
+  // Memoize visible scenarios
+  const visibleScenarios = useMemo(
+    () => state.scenarios.filter((s) => s.visible),
+    [state.scenarios]
+  );
+
+  // Memoize computed stats for all visible scenarios
+  const scenarioStats = useMemo(() => {
+    return visibleScenarios.map((scenario) => ({
+      scenario,
+      stats: computeStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl),
+      advStats: computeAdvancedStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl),
+    }));
+  }, [visibleScenarios]);
+
+  const handleFocusScenario = useCallback((scenarioId: string) => {
+    dispatch({
+      type: 'SET_FOCUSED_SCENARIO',
+      payload: state.focusedScenarioId === scenarioId ? null : scenarioId,
+    });
+  }, [dispatch, state.focusedScenarioId]);
 
   if (visibleScenarios.length === 0) {
     return (
@@ -29,13 +51,6 @@ export default function ComparisonStatsTable() {
       </Paper>
     );
   }
-
-  const handleFocusScenario = (scenarioId: string) => {
-    dispatch({
-      type: 'SET_FOCUSED_SCENARIO',
-      payload: state.focusedScenarioId === scenarioId ? null : scenarioId,
-    });
-  };
 
   return (
     <Paper elevation={2} sx={{ p: 2, maxHeight: '300px', display: 'flex', flexDirection: 'column' }}>
@@ -59,17 +74,15 @@ export default function ComparisonStatsTable() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {visibleScenarios.map((scenario) => {
-              const stats = computeStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl);
-              const advStats = computeAdvancedStats(
-                scenario.mean,
-                scenario.std,
-                scenario.lsl,
-                scenario.usl
-              );
+            {scenarioStats.map(({ scenario, stats, advStats }) => {
               const isFocused = state.focusedScenarioId === scenario.id;
 
               if (!stats || !advStats) return null;
+
+              const getCapabilityColor = (value: number) => 
+                value >= CAPABILITY_THRESHOLDS.good ? 'success.main' 
+                : value >= CAPABILITY_THRESHOLDS.acceptable ? 'warning.main' 
+                : 'error.main';
 
               return (
                 <TableRow
@@ -102,19 +115,13 @@ export default function ComparisonStatsTable() {
                   <TableCell align="right">{scenario.usl.toFixed(2)}</TableCell>
                   <TableCell
                     align="right"
-                    sx={{
-                      fontWeight: 600,
-                      color: stats.cp >= 1.33 ? 'success.main' : stats.cp >= 1.0 ? 'warning.main' : 'error.main',
-                    }}
+                    sx={{ fontWeight: 600, color: getCapabilityColor(stats.cp) }}
                   >
                     {stats.cp.toFixed(2)}
                   </TableCell>
                   <TableCell
                     align="right"
-                    sx={{
-                      fontWeight: 600,
-                      color: stats.cpk >= 1.33 ? 'success.main' : stats.cpk >= 1.0 ? 'warning.main' : 'error.main',
-                    }}
+                    sx={{ fontWeight: 600, color: getCapabilityColor(stats.cpk) }}
                   >
                     {stats.cpk.toFixed(2)}
                   </TableCell>
@@ -133,4 +140,4 @@ export default function ComparisonStatsTable() {
       </Box>
     </Paper>
   );
-}
+});
