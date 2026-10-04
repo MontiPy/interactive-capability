@@ -17,20 +17,23 @@ import {
   HelpOutline as HelpIcon,
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
+import { formatInput, syncInput, meanSliderRange, stdSliderRange } from '../utils/format';
 
 export default function DistributionControls() {
   const { state, dispatch } = useApp();
   const [meanError, setMeanError] = useState<string>('');
   const [stdError, setStdError] = useState<string>('');
-  const [meanInput, setMeanInput] = useState(state.mean.toString());
-  const [stdInput, setStdInput] = useState(state.std.toString());
+  const [meanInput, setMeanInput] = useState(formatInput(state.mean));
+  const [stdInput, setStdInput] = useState(formatInput(state.std));
+  const meanRange = meanSliderRange(state.mean, state.std, state.lsl, state.usl);
+  const stdRange = stdSliderRange(state.std, state.lsl, state.usl);
 
   useEffect(() => {
-    setMeanInput(state.mean.toString());
+    setMeanInput((prev) => syncInput(prev, state.mean));
   }, [state.mean]);
 
   useEffect(() => {
-    setStdInput(state.std.toString());
+    setStdInput((prev) => syncInput(prev, state.std));
   }, [state.std]);
 
   const handleMeanChange = (value: string) => {
@@ -42,10 +45,6 @@ export default function DistributionControls() {
     const num = parseFloat(value);
     if (!isFinite(num)) {
       setMeanError('Mean must be a finite number');
-      return;
-    }
-    if (num < -100 || num > 100) {
-      setMeanError('Mean should be between -100 and 100');
       return;
     }
     setMeanError('');
@@ -65,10 +64,6 @@ export default function DistributionControls() {
     }
     if (num === 0) {
       setStdError('Standard deviation must be greater than zero');
-      return;
-    }
-    if (num > 100) {
-      setStdError('Standard deviation should be ≤ 100');
       return;
     }
     setStdError('');
@@ -110,12 +105,12 @@ export default function DistributionControls() {
                 onChange={(_, val) => {
                   setMeanError('');
                   const numVal = val as number;
-                  setMeanInput(numVal.toString());
+                  setMeanInput(formatInput(numVal));
                   dispatch({ type: 'SET_MEAN', payload: numVal });
                 }}
-                min={-10}
-                max={10}
-                step={0.1}
+                min={meanRange.min}
+                max={meanRange.max}
+                step={meanRange.step}
                 sx={{ flex: 1, mt: 1.5 }}
                 aria-label="Mean slider"
               />
@@ -126,12 +121,12 @@ export default function DistributionControls() {
                   onChange={(e) => handleMeanChange(e.target.value)}
                   onBlur={() => {
                     if (!meanInput.trim()) {
-                      setMeanInput(state.mean.toString());
+                      setMeanInput(formatInput(state.mean));
                       setMeanError('');
                     }
                   }}
                   inputProps={{
-                    step: 0.01,
+                    step: meanRange.step,
                     'aria-label': 'Mean value',
                   }}
                   size="small"
@@ -145,7 +140,7 @@ export default function DistributionControls() {
                 )}
                 {!meanError && (
                   <FormHelperText sx={{ mx: 0, fontSize: '0.7rem' }}>
-                    step: 0.01
+                    step: {meanRange.step}
                   </FormHelperText>
                 )}
               </Box>
@@ -170,13 +165,13 @@ export default function DistributionControls() {
                   setStdError('');
                   const numVal = val as number;
                   if (numVal > 0) {
-                    setStdInput(numVal.toString());
+                    setStdInput(formatInput(numVal));
                     dispatch({ type: 'SET_STD', payload: numVal });
                   }
                 }}
-                min={0.01}
-                max={5}
-                step={0.01}
+                min={stdRange.min}
+                max={stdRange.max}
+                step={stdRange.step}
                 sx={{ flex: 1, mt: 1.5 }}
                 aria-label="Standard deviation slider"
               />
@@ -187,7 +182,7 @@ export default function DistributionControls() {
                   onChange={(e) => handleStdChange(e.target.value)}
                   onBlur={() => {
                     if (!stdInput.trim()) {
-                      setStdInput(state.std.toString());
+                      setStdInput(formatInput(state.std));
                       setStdError('');
                     }
                   }}
@@ -198,8 +193,8 @@ export default function DistributionControls() {
                     }
                   }}
                   inputProps={{
-                    step: 0.01,
-                    min: 0.01,
+                    step: stdRange.step,
+                    min: 0,
                     'aria-label': 'Standard deviation value',
                   }}
                   size="small"
@@ -213,7 +208,7 @@ export default function DistributionControls() {
                 )}
                 {!stdError && (
                   <FormHelperText sx={{ mx: 0, fontSize: '0.7rem' }}>
-                    step: 0.01
+                    step: {stdRange.step}
                   </FormHelperText>
                 )}
               </Box>

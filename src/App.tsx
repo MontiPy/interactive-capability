@@ -8,11 +8,13 @@ import React, { Suspense, useState } from 'react';
 import ComparisonPanel from './components/ComparisonPanel';
 import Layout from './components/Layout'; // Import the new Layout component
 import { useApp } from './context/AppContext';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const SingleDistributionPanel = React.lazy(() => import('./components/SingleDistributionPanel'));
 
 export default function App() {
   const { state } = useApp();
+  useKeyboardShortcuts();
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   const [dataImportOpen, setDataImportOpen] = useState(false);
   const [advancedStatsOpen, setAdvancedStatsOpen] = useState(false);
@@ -23,7 +25,7 @@ export default function App() {
   });
 
   const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   const showSnackbar = (message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'success') => {
@@ -46,8 +48,8 @@ export default function App() {
 
   return (
     <>
-      <Layout controlsContent={controlsContent}>
-        <Box sx={{ flex: '1 1 auto', minHeight: 0, mb: 2 }}>
+      <Layout controlsContent={controlsContent} onNotify={showSnackbar}>
+        <Box sx={{ flex: '1 1 auto', minHeight: { xs: 360, md: 0 }, mb: 2 }}>
           <Chart />
         </Box>
         <Box sx={{ flex: '0 0 auto' }}>
@@ -62,11 +64,13 @@ export default function App() {
         anchorEl={exportMenuAnchor}
         open={Boolean(exportMenuAnchor)}
         onClose={() => setExportMenuAnchor(null)}
+        onNotify={showSnackbar}
       />
 
       <DataImportDialog
         open={dataImportOpen}
         onClose={() => setDataImportOpen(false)}
+        onImported={(message) => showSnackbar(message, 'success')}
       />
 
       <AdvancedStatsDialog

@@ -25,7 +25,8 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   ContentCopy as DuplicateIcon,
-  DragIndicator as DragIcon,
+  KeyboardArrowUp as MoveUpIcon,
+  KeyboardArrowDown as MoveDownIcon,
   HelpOutline as HelpIcon,
   RadioButtonUnchecked as UnfocusedIcon,
   RadioButtonChecked as FocusedIcon,
@@ -38,17 +39,6 @@ import GoalSeekDialog from './GoalSeekDialog';
 import { useApp } from '../context/AppContext';
 import { computeStats } from '../utils/stats';
 
-const SCENARIO_COLORS = [
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#7f7f7f',
-  '#bcbd22',
-  '#17becf',
-];
 
 interface ScenarioManagerProps {
   fullView?: boolean;
@@ -82,13 +72,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
   });
 
   const handleAddScenario = () => {
-    const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
     dispatch({
       type: 'ADD_SCENARIO',
       payload: {
         ...newScenario,
         name: newScenario.name || `Scenario ${state.scenarios.length + 1}`,
-        color: SCENARIO_COLORS[colorIndex],
         visible: true,
       },
     });
@@ -115,7 +103,6 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
   };
 
   const handleDuplicateScenario = (scenario: typeof state.scenarios[0]) => {
-    const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
     dispatch({
       type: 'ADD_SCENARIO',
       payload: {
@@ -124,7 +111,8 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
         std: scenario.std,
         lsl: scenario.lsl,
         usl: scenario.usl,
-        color: SCENARIO_COLORS[colorIndex],
+        overallStd: scenario.overallStd,
+        sampleSize: scenario.sampleSize,
         visible: true,
       },
     });
@@ -186,7 +174,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setGoalSeekScenario(null);
   };
 
-  const renderScenarioCard = (scenario: typeof state.scenarios[0]) => {
+  const renderScenarioCard = (scenario: typeof state.scenarios[0], index: number) => {
     const stats = computeStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl);
     const isEditing = fullView && editingScenarioId === scenario.id;
     const cardPadding = fullView ? 2 : 1.5;
@@ -203,14 +191,34 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
       >
         <CardContent sx={{ p: cardPadding, '&:last-child': { pb: cardPadding } }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            <DragIcon
-              sx={{
-                color: 'text.secondary',
-                fontSize: 18,
-                mt: 0.5,
-                cursor: 'move',
-              }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', mt: -0.5 }}>
+              <Tooltip title="Move up" placement="left">
+                <span>
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.25 }}
+                    disabled={index === 0}
+                    onClick={() => dispatch({ type: 'MOVE_SCENARIO', payload: { id: scenario.id, direction: -1 } })}
+                    aria-label={`Move ${scenario.name} up`}
+                  >
+                    <MoveUpIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Move down" placement="left">
+                <span>
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.25 }}
+                    disabled={index === state.scenarios.length - 1}
+                    onClick={() => dispatch({ type: 'MOVE_SCENARIO', payload: { id: scenario.id, direction: 1 } })}
+                    aria-label={`Move ${scenario.name} down`}
+                  >
+                    <MoveDownIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               {isEditing ? (
                 <Stack spacing={1.5}>

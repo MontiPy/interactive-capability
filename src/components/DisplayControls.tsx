@@ -156,7 +156,7 @@ export default function DisplayControls() {
             </Box>
             {state.display.autoRange && (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Auto uses max(μ±6σ, LSL−10% / USL+10%)
+                Auto fits μ±6σ and the spec limits (+10% of the tolerance)
               </Typography>
             )}
           </Box>

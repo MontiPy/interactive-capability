@@ -16,32 +16,32 @@ describe('Viewport Utilities', () => {
     it('should expand to padded LSL when LSL is outside mean-6σ (negative LSL)', () => {
       const result = computeHybridViewport(0, 1, -10, 3);
       // mean - 6σ = 0 - 6 = -6
-      // padLower(lsl=-10) = -10 * 1.1 = -11
-      // displayMin should be min(-6, -11) = -11
-      expect(approx(result.displayMin, -11)).toBe(true);
+      // padding = 10% of tolerance (13) = 1.3 → padded LSL = -11.3
+      // displayMin should be min(-6, -11.3) = -11.3
+      expect(approx(result.displayMin, -11.3)).toBe(true);
     });
 
     it('should expand to padded USL when USL is outside mean+6σ (positive USL)', () => {
       const result = computeHybridViewport(0, 1, -3, 10);
       // mean + 6σ = 0 + 6 = 6
-      // padUpper(usl=10) = 10 * 1.1 = 11
-      // displayMax should be max(6, 11) = 11
-      expect(approx(result.displayMax, 11)).toBe(true);
+      // padding = 10% of tolerance (13) = 1.3 → padded USL = 11.3
+      // displayMax should be max(6, 11.3) = 11.3
+      expect(approx(result.displayMax, 11.3)).toBe(true);
     });
 
-    it('should handle positive LSL correctly (inward padding)', () => {
+    it('should pad a positive LSL outward', () => {
       const result = computeHybridViewport(10, 1, 5, 15);
       // mean - 6σ = 10 - 6 = 4
-      // padLower(lsl=5) = 5 * 0.9 = 4.5
-      // displayMin should be min(4, 4.5) = 4
+      // padded LSL = 5 - 0.1 * 10 = 4
+      // displayMin should be min(4, 4) = 4
       expect(approx(result.displayMin, 4)).toBe(true);
     });
 
-    it('should handle negative USL correctly (inward padding)', () => {
+    it('should pad a negative USL outward', () => {
       const result = computeHybridViewport(-10, 1, -15, -5);
       // mean + 6σ = -10 + 6 = -4
-      // padUpper(usl=-5) = -5 * 0.9 = -4.5
-      // displayMax should be max(-4, -4.5) = -4
+      // padded USL = -5 + 0.1 * 10 = -4
+      // displayMax should be max(-4, -4) = -4
       expect(approx(result.displayMax, -4)).toBe(true);
     });
 
@@ -49,22 +49,20 @@ describe('Viewport Utilities', () => {
       const result = computeHybridViewport(0, 2, -15, 10);
       // mean - 6σ = 0 - 12 = -12
       // mean + 6σ = 0 + 12 = 12
-      // padLower(lsl=-15) = -15 * 1.1 = -16.5
-      // padUpper(usl=10) = 10 * 1.1 = 11
-      // displayMin should be min(-12, -16.5) = -16.5
-      // displayMax should be max(12, 11) = 12
-      expect(approx(result.displayMin, -16.5)).toBe(true);
-      expect(approx(result.displayMax, 12)).toBe(true);
+      // padding = 10% of 25 = 2.5 → padded limits -17.5 / 12.5
+      // displayMin should be min(-12, -17.5) = -17.5
+      // displayMax should be max(12, 12.5) = 12.5
+      expect(approx(result.displayMin, -17.5)).toBe(true);
+      expect(approx(result.displayMax, 12.5)).toBe(true);
     });
 
     it('should handle large standard deviation', () => {
       const result = computeHybridViewport(0, 5, -10, 10);
       // mean - 6σ = 0 - 30 = -30
       // mean + 6σ = 0 + 30 = 30
-      // padLower(lsl=-10) = -10 * 1.1 = -11
-      // padUpper(usl=10) = 10 * 1.1 = 11
-      // displayMin should be min(-30, -11) = -30
-      // displayMax should be max(30, 11) = 30
+      // padded limits = ∓10 ∓ 2 = -12 / 12
+      // displayMin should be min(-30, -12) = -30
+      // displayMax should be max(30, 12) = 30
       expect(approx(result.displayMin, -30)).toBe(true);
       expect(approx(result.displayMax, 30)).toBe(true);
     });
@@ -73,24 +71,29 @@ describe('Viewport Utilities', () => {
       const result = computeHybridViewport(0, 0.1, -2, 2);
       // mean - 6σ = 0 - 0.6 = -0.6
       // mean + 6σ = 0 + 0.6 = 0.6
-      // padLower(lsl=-2) = -2 * 1.1 = -2.2
-      // padUpper(usl=2) = 2 * 1.1 = 2.2
-      // displayMin should be min(-0.6, -2.2) = -2.2
-      // displayMax should be max(0.6, 2.2) = 2.2
-      expect(approx(result.displayMin, -2.2)).toBe(true);
-      expect(approx(result.displayMax, 2.2)).toBe(true);
+      // padding = 10% of 4 = 0.4 → padded limits -2.4 / 2.4
+      // displayMin should be min(-0.6, -2.4) = -2.4
+      // displayMax should be max(0.6, 2.4) = 2.4
+      expect(approx(result.displayMin, -2.4)).toBe(true);
+      expect(approx(result.displayMax, 2.4)).toBe(true);
     });
 
     it('should handle LSL and USL at zero boundary', () => {
       const result = computeHybridViewport(5, 1, 0, 10);
       // mean - 6σ = 5 - 6 = -1
       // mean + 6σ = 5 + 6 = 11
-      // padLower(lsl=0) = 0 * 0.9 = 0 (zero edge case)
-      // padUpper(usl=10) = 10 * 1.1 = 11
-      // displayMin should be min(-1, 0) = -1
+      // padding = 10% of 10 = 1 → padded limits -1 / 11
+      // displayMin should be min(-1, -1) = -1
       // displayMax should be max(11, 11) = 11
       expect(approx(result.displayMin, -1)).toBe(true);
       expect(approx(result.displayMax, 11)).toBe(true);
+    });
+
+    it('should keep offset processes in a proportionate window', () => {
+      // A shaft diameter: μ = 250.02, σ = 0.004, tolerance 249.98–250.06
+      const result = computeHybridViewport(250.02, 0.004, 249.98, 250.06);
+      expect(approx(result.displayMin, 249.972, 1e-6)).toBe(true);
+      expect(approx(result.displayMax, 250.068, 1e-6)).toBe(true);
     });
   });
 
@@ -200,11 +203,11 @@ describe('Viewport Utilities', () => {
         { mean: 10, std: 1, lsl: 5, usl: 15, visible: true },
       ];
       const result = computeMultiDistributionViewport(scenarios);
-      // Scenario 1: -10±6 = -16 to -4, padded LSL/USL: -16.5, -4.5
-      // Scenario 2: 10±6 = 4 to 16, padded LSL/USL: 4.5, 16.5
-      // Global: min(-16, -16.5) to max(16, 16.5)
-      expect(approx(result.displayMin, -16.5)).toBe(true);
-      expect(approx(result.displayMax, 16.5)).toBe(true);
+      // Scenario 1: -10±6 = -16 to -4, padded LSL/USL: -16, -4
+      // Scenario 2: 10±6 = 4 to 16, padded LSL/USL: 4, 16
+      // Global: -16 to 16
+      expect(approx(result.displayMin, -16)).toBe(true);
+      expect(approx(result.displayMax, 16)).toBe(true);
     });
 
     it('should handle scenarios with wide spec limits', () => {
@@ -213,11 +216,11 @@ describe('Viewport Utilities', () => {
         { mean: 5, std: 1, lsl: -15, usl: 25, visible: true },
       ];
       const result = computeMultiDistributionViewport(scenarios);
-      // Scenario 1: -6 to 6, but padded LSL/USL: -22 to 22
-      // Scenario 2: -1 to 11, but padded LSL/USL: -16.5 to 27.5
+      // Scenario 1: -6 to 6, but padded LSL/USL: -24 to 24
+      // Scenario 2: -1 to 11, but padded LSL/USL: -19 to 29
       // Global should use the wider spec limits
-      expect(approx(result.displayMin, -22)).toBe(true);
-      expect(approx(result.displayMax, 27.5)).toBe(true);
+      expect(approx(result.displayMin, -24)).toBe(true);
+      expect(approx(result.displayMax, 29)).toBe(true);
     });
 
     it('should handle scenarios with varying std deviations', () => {

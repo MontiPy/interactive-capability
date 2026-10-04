@@ -10,12 +10,20 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Button,
 } from '@mui/material';
-import { RadioButtonChecked as FocusedIcon } from '@mui/icons-material';
+import { RadioButtonChecked as FocusedIcon, Download as DownloadIcon } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { computeStats, computeAdvancedStats } from '../utils/stats';
+import { getCapabilityColor } from '../theme';
+import { formatPpm } from '../utils/format';
+import { formatValue } from '../utils/rendering';
 
-export default function ComparisonStatsTable() {
+interface ComparisonStatsTableProps {
+  onOpenExportMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}
+
+export default function ComparisonStatsTable({ onOpenExportMenu }: ComparisonStatsTableProps) {
   const { state, dispatch } = useApp();
 
   const visibleScenarios = state.scenarios.filter((s) => s.visible);
@@ -39,9 +47,14 @@ export default function ComparisonStatsTable() {
 
   return (
     <Paper elevation={2} sx={{ p: 2, maxHeight: '300px', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h6" gutterBottom>
-        Scenario Comparison
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6">Scenario Comparison</Typography>
+        {onOpenExportMenu && (
+          <Button size="small" onClick={onOpenExportMenu} endIcon={<DownloadIcon />}>
+            Export
+          </Button>
+        )}
+      </Box>
       <TableContainer sx={{ maxHeight: '250px', overflowY: 'auto' }}>
         <Table size="small" stickyHeader>
           <TableHead>
@@ -56,6 +69,7 @@ export default function ComparisonStatsTable() {
               <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Cpk</TableCell>
               <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Pp</TableCell>
               <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Ppk</TableCell>
+              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">PPM</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -65,7 +79,8 @@ export default function ComparisonStatsTable() {
                 scenario.mean,
                 scenario.std,
                 scenario.lsl,
-                scenario.usl
+                scenario.usl,
+                scenario.overallStd
               );
               const isFocused = state.focusedScenarioId === scenario.id;
 
@@ -86,7 +101,11 @@ export default function ComparisonStatsTable() {
                 >
                   <TableCell padding="checkbox">
                     <Tooltip title={isFocused ? 'Focused (click to unfocus)' : 'Click to focus'}>
-                      <IconButton size="small" color={isFocused ? 'primary' : 'default'}>
+                      <IconButton
+                        size="small"
+                        color={isFocused ? 'primary' : 'default'}
+                        aria-label={isFocused ? `Unfocus ${scenario.name}` : `Focus ${scenario.name}`}
+                      >
                         <FocusedIcon fontSize="small" sx={{ opacity: isFocused ? 1 : 0.3 }} />
                       </IconButton>
                     </Tooltip>
@@ -96,15 +115,15 @@ export default function ComparisonStatsTable() {
                       {scenario.name}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">{scenario.mean.toFixed(2)}</TableCell>
-                  <TableCell align="right">{scenario.std.toFixed(2)}</TableCell>
-                  <TableCell align="right">{scenario.lsl.toFixed(2)}</TableCell>
-                  <TableCell align="right">{scenario.usl.toFixed(2)}</TableCell>
+                  <TableCell align="right">{formatValue(scenario.mean)}</TableCell>
+                  <TableCell align="right">{formatValue(scenario.std)}</TableCell>
+                  <TableCell align="right">{formatValue(scenario.lsl)}</TableCell>
+                  <TableCell align="right">{formatValue(scenario.usl)}</TableCell>
                   <TableCell
                     align="right"
                     sx={{
                       fontWeight: 600,
-                      color: stats.cp >= 1.33 ? 'success.main' : stats.cp >= 1.0 ? 'warning.main' : 'error.main',
+                      color: getCapabilityColor(stats.cp),
                     }}
                   >
                     {stats.cp.toFixed(2)}
@@ -113,13 +132,14 @@ export default function ComparisonStatsTable() {
                     align="right"
                     sx={{
                       fontWeight: 600,
-                      color: stats.cpk >= 1.33 ? 'success.main' : stats.cpk >= 1.0 ? 'warning.main' : 'error.main',
+                      color: getCapabilityColor(stats.cpk),
                     }}
                   >
                     {stats.cpk.toFixed(2)}
                   </TableCell>
                   <TableCell align="right">{advStats.pp.toFixed(2)}</TableCell>
                   <TableCell align="right">{advStats.ppk.toFixed(2)}</TableCell>
+                  <TableCell align="right">{formatPpm(advStats.dpmo)}</TableCell>
                 </TableRow>
               );
             })}

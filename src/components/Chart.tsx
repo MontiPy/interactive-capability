@@ -1,272 +1,216 @@
-import { useEffect, useRef, useState } from 'react';
-import { Paper, Box, Alert } from '@mui/material';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Paper, Box, Alert, Typography } from '@mui/material';
 import { useApp } from '../context/AppContext';
-import { renderPlot, autoTickStep } from '../utils/rendering';
+import { useColorMode } from '../context/ColorModeContext';
+import { getChartColors } from '../theme';
+import { renderPlot, autoTickStep, pxToValue, valueToPx, formatValue } from '../utils/rendering';
+import { phi } from '../utils/stats';
+import { formatPercent, niceStep, roundToStep } from '../utils/format';
+
+function validate(mean: number, std: number, lsl: number, usl: number): string | null {
+  if (!isFinite(mean)) return 'Mean must be a number.';
+  if (!(isFinite(std) && std > 0)) return 'Standard deviation must be a positive number.';
+  if (!isFinite(lsl)) return 'LSL must be a number.';
+  if (!isFinite(usl)) return 'USL must be a number.';
+  if (!(usl > lsl)) return 'USL must be greater than LSL.';
+  return null;
+}
 
 export default function Chart() {
   const { state, dispatch } = useApp();
+  const { mode } = useColorMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [hover, setHover] = useState<{ px: number; value: number } | null>(null);
 
-  // Validation
+  const colors = useMemo(() => getChartColors(mode), [mode]);
+  const isComparison = state.activeTab === 'comparison';
+  // Validation only applies to the primary distribution shown in single mode
+  const validationError = isComparison
+    ? null
+    : validate(state.mean, state.std, state.lsl, state.usl);
+
+  // Latest state for pointer handlers without re-binding listeners on every change
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Track container size (also catches panel collapse, which doesn't fire window resize)
   useEffect(() => {
-    const { mean, std, lsl, usl } = state;
+    const container = containerRef.current;
+    if (!container) return;
 
-    if (!isFinite(mean)) {
-      setValidationError('Mean must be a number.');
-      return;
-    }
-    if (!(isFinite(std) && std > 0)) {
-      setValidationError('Standard deviation must be a positive number.');
-      return;
-    }
-    if (!isFinite(lsl)) {
-      setValidationError('LSL must be a number.');
-      return;
-    }
-    if (!isFinite(usl)) {
-      setValidationError('USL must be a number.');
-      return;
-    }
-    if (!(usl > lsl)) {
-      setValidationError('USL must be greater than LSL.');
-      return;
-    }
+    const measure = () => {
+      const width = Math.max(320, container.clientWidth);
+      const height = Math.max(300, container.clientHeight);
+      setSize((prev) =>
+        prev.width === width && prev.height === height ? prev : { width, height },
+      );
+    };
 
-    setValidationError(null);
-  }, [state.mean, state.std, state.lsl, state.usl]);
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   // Render canvas
+  const { mean, std, lsl, usl, display, scenarios, histogramData, target } = state;
   useEffect(() => {
-    if (!canvasRef.current || validationError) return;
-
-    const { mean, std, lsl, usl, display, scenarios, histogramData, activeTab } = state;
-
-    // Use viewport values from context (already computed by hybrid auto-viewport)
-    const displayMin = display.displayMin;
-    const displayMax = display.displayMax;
+    const canvas = canvasRef.current;
+    if (!canvas || validationError || size.width === 0) return;
 
     const tickStep =
       display.tickStep && display.tickStep > 0
         ? display.tickStep
-        : autoTickStep(displayMin, displayMax);
+        : // About one tick per 90px keeps labels from colliding on narrow screens
+          autoTickStep(
+            display.displayMin,
+            display.displayMax,
+            Math.min(10, Math.max(3, Math.floor(size.width / 90))),
+          );
 
-    // Filter scenarios based on active tab
-    const displayScenarios = activeTab === 'single' ? [] : scenarios;
-    const isComparisonMode = activeTab === 'comparison';
+    const frame = requestAnimationFrame(() => {
+      const dpr = window.devicePixelRatio || 1;
+      // Assigning width resets all canvas state (needed for consistent Edge rendering)
+      canvas.width = Math.round(size.width * dpr);
+      canvas.height = Math.round(size.height * dpr);
+      canvas.style.width = `${size.width}px`;
+      canvas.style.height = `${size.height}px`;
+      const ctx = canvas.getContext('2d');
+      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Use requestAnimationFrame for proper timing (Edge compatibility)
-    requestAnimationFrame(() => {
-      if (!canvasRef.current) return;
-
-      // Force complete canvas reset for Edge compatibility
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        // Nuclear option: reset canvas width to clear all internal state
-        const currentWidth = canvasRef.current.width;
-        const currentHeight = canvasRef.current.height;
-        canvasRef.current.width = currentWidth;
-        canvasRef.current.height = currentHeight;
-
-        // Re-apply device pixel ratio transform
-        const dpr = window.devicePixelRatio || 1;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-
-      renderPlot(canvasRef.current, {
+      renderPlot(canvas, {
         mean,
         std,
         lsl,
         usl,
-        displayMin,
-        displayMax,
+        displayMin: display.displayMin,
+        displayMax: display.displayMax,
         tickStep,
         showGrid: display.showGrid,
         tickFormat: display.tickFormat,
-        scenarios: displayScenarios,
+        scenarios: isComparison ? scenarios : [],
         histogramData,
-        showShading: !isComparisonMode,
-        showPrimary: !isComparisonMode,
+        showShading: !isComparison,
+        showPrimary: !isComparison,
+        target,
+        colors,
       });
     });
+
+    return () => cancelAnimationFrame(frame);
   }, [
-    state.mean,
-    state.std,
-    state.lsl,
-    state.usl,
-    state.display,
-    state.scenarios,
-    state.histogramData,
-    state.activeTab,
+    mean,
+    std,
+    lsl,
+    usl,
+    target,
+    display,
+    scenarios,
+    histogramData,
+    isComparison,
     validationError,
-    canvasDimensions,
+    size,
+    colors,
   ]);
 
-  // Resize canvas on window resize and track canvas dimensions (fill available container height)
-  useEffect(() => {
-    const resizeCanvas = () => {
-      if (!canvasRef.current || !containerRef.current) return;
-
-      const dpr = window.devicePixelRatio || 1;
-      const container = containerRef.current;
-      const width = Math.max(320, container.clientWidth);
-      const height = Math.max(300, container.clientHeight);
-
-      canvasRef.current.style.width = `${width}px`;
-      canvasRef.current.style.height = `${height}px`;
-      canvasRef.current.width = Math.round(width * dpr);
-      canvasRef.current.height = Math.round(height * dpr);
-
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-
-      // Update dimensions to trigger re-render
-      setCanvasDimensions({ width, height });
-    };
-
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
-  }, []);
-
-  // Force resize when scenario count changes (ensures proper layout after add/remove)
-  useEffect(() => {
-    // Use requestAnimationFrame to ensure DOM has updated
-    requestAnimationFrame(() => {
-      if (!canvasRef.current || !containerRef.current) return;
-
-      const dpr = window.devicePixelRatio || 1;
-      const container = containerRef.current;
-      const width = Math.max(320, container.clientWidth);
-      const height = Math.max(300, container.clientHeight);
-
-      canvasRef.current.style.width = `${width}px`;
-      canvasRef.current.style.height = `${height}px`;
-      canvasRef.current.width = Math.round(width * dpr);
-      canvasRef.current.height = Math.round(height * dpr);
-
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-
-      setCanvasDimensions({ width, height });
-    });
-  }, [state.scenarios.length]);
-
-  // Handle draggable LSL/USL (only in single distribution mode)
+  // Pointer interaction: drag LSL/USL (single mode) and hover readout (both modes)
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || validationError || state.activeTab !== 'single') return;
+    if (!canvas) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!state.draggingLimit) return;
+    const localX = (e: PointerEvent) => e.clientX - canvas.getBoundingClientRect().left;
 
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const width = rect.width;
-
-      // Use viewport values from context
-      const displayMin = state.display.displayMin;
-      const displayMax = state.display.displayMax;
-
-      const range = displayMax - displayMin;
-      const value = displayMin + (x / width) * range;
-
-      if (state.draggingLimit === 'lsl') {
-        dispatch({ type: 'SET_LSL', payload: Math.round(value * 10) / 10 });
-      } else if (state.draggingLimit === 'usl') {
-        dispatch({ type: 'SET_USL', payload: Math.round(value * 10) / 10 });
-      }
+    const hitLimit = (e: PointerEvent): 'lsl' | 'usl' | null => {
+      const s = stateRef.current;
+      if (s.activeTab !== 'single') return null;
+      const width = canvas.getBoundingClientRect().width;
+      const x = localX(e);
+      const tolerance = e.pointerType === 'touch' ? 22 : 10;
+      const dL = Math.abs(x - valueToPx(s.lsl, width, s.display.displayMin, s.display.displayMax));
+      const dU = Math.abs(x - valueToPx(s.usl, width, s.display.displayMin, s.display.displayMax));
+      if (Math.min(dL, dU) > tolerance) return null;
+      return dL <= dU ? 'lsl' : 'usl';
     };
 
-    const handleMouseUp = () => {
-      dispatch({ type: 'SET_DRAGGING_LIMIT', payload: null });
+    const handlePointerDown = (e: PointerEvent) => {
+      const limit = hitLimit(e);
+      if (!limit) return;
+      canvas.setPointerCapture(e.pointerId);
+      dispatch({ type: 'SET_DRAGGING_LIMIT', payload: limit });
+      e.preventDefault();
     };
 
-    const handleMouseDown = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const width = rect.width;
+    const handlePointerMove = (e: PointerEvent) => {
+      const s = stateRef.current;
+      const width = canvas.getBoundingClientRect().width;
+      const x = localX(e);
+      const { displayMin, displayMax } = s.display;
+      const value = pxToValue(x, width, displayMin, displayMax);
 
-      // Use viewport values from context
-      const displayMin = state.display.displayMin;
-      const displayMax = state.display.displayMax;
-
-      const range = displayMax - displayMin;
-      const xToPx = (val: number) => ((val - displayMin) / range) * width;
-
-      const lslPx = xToPx(state.lsl);
-      const uslPx = xToPx(state.usl);
-
-      const tolerance = 10;
-
-      if (Math.abs(x - lslPx) < tolerance) {
-        dispatch({ type: 'SET_DRAGGING_LIMIT', payload: 'lsl' });
-        e.preventDefault();
-      } else if (Math.abs(x - uslPx) < tolerance) {
-        dispatch({ type: 'SET_DRAGGING_LIMIT', payload: 'usl' });
-        e.preventDefault();
-      }
-    };
-
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
-    canvas.addEventListener('mouseleave', handleMouseUp);
-
-    return () => {
-      canvas.removeEventListener('mousedown', handleMouseDown);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseup', handleMouseUp);
-      canvas.removeEventListener('mouseleave', handleMouseUp);
-    };
-  }, [state, dispatch, validationError]);
-
-  // Cursor change on hover (only in single distribution mode)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || validationError || state.activeTab !== 'single') return;
-
-    const handleMouseMoveHover = (e: MouseEvent) => {
-      if (state.draggingLimit) {
+      if (s.draggingLimit) {
+        const step = niceStep(displayMax - displayMin);
+        const snapped = roundToStep(value, step);
+        if (s.draggingLimit === 'lsl') {
+          dispatch({
+            type: 'SET_LSL',
+            payload: Math.min(snapped, roundToStep(s.usl - step, step)),
+          });
+        } else {
+          dispatch({
+            type: 'SET_USL',
+            payload: Math.max(snapped, roundToStep(s.lsl + step, step)),
+          });
+        }
         canvas.style.cursor = 'ew-resize';
+        setHover(null);
         return;
       }
 
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const width = rect.width;
-
-      // Use viewport values from context
-      const displayMin = state.display.displayMin;
-      const displayMax = state.display.displayMax;
-
-      const range = displayMax - displayMin;
-      const xToPx = (val: number) => ((val - displayMin) / range) * width;
-
-      const lslPx = xToPx(state.lsl);
-      const uslPx = xToPx(state.usl);
-
-      const tolerance = 10;
-
-      if (Math.abs(x - lslPx) < tolerance || Math.abs(x - uslPx) < tolerance) {
-        canvas.style.cursor = 'ew-resize';
-      } else {
-        canvas.style.cursor = 'default';
-      }
+      canvas.style.cursor = hitLimit(e) ? 'ew-resize' : 'crosshair';
+      if (e.pointerType !== 'touch') setHover({ px: x, value });
     };
 
-    canvas.addEventListener('mousemove', handleMouseMoveHover);
+    const endDrag = (e: PointerEvent) => {
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      if (stateRef.current.draggingLimit) dispatch({ type: 'SET_DRAGGING_LIMIT', payload: null });
+    };
+
+    const handleLeave = () => setHover(null);
+
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('pointerleave', handleLeave);
 
     return () => {
-      canvas.removeEventListener('mousemove', handleMouseMoveHover);
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      canvas.removeEventListener('pointermove', handlePointerMove);
+      canvas.removeEventListener('pointerup', endDrag);
+      canvas.removeEventListener('pointercancel', endDrag);
+      canvas.removeEventListener('pointerleave', handleLeave);
     };
-  }, [state, validationError]);
+  }, [dispatch]);
+
+  // Readout rows for the hover tooltip
+  const readout = useMemo(() => {
+    if (!hover || validationError) return null;
+    const x = hover.value;
+    const rows = isComparison
+      ? state.scenarios
+          .filter((s) => s.visible && s.std > 0)
+          .map((s) => ({ name: s.name, color: s.color, z: (x - s.mean) / s.std }))
+      : [{ name: 'Primary', color: colors.primaryCurve, z: (x - state.mean) / state.std }];
+    return { x, rows };
+  }, [hover, isComparison, state.scenarios, state.mean, state.std, colors, validationError]);
+
+  const tooltipOnLeft = hover ? hover.px > size.width / 2 : false;
 
   return (
     <Paper elevation={2} sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -275,17 +219,84 @@ export default function Chart() {
           {validationError}
         </Alert>
       )}
-      <Box ref={containerRef} sx={{ position: 'relative', width: '100%', flex: 1, minHeight: 0 }}>
+      <Box
+        ref={containerRef}
+        sx={{ position: 'relative', width: '100%', flex: 1, minHeight: 0, overflow: 'hidden' }}
+      >
         <canvas
           ref={canvasRef}
+          role="img"
+          aria-label={
+            isComparison
+              ? `Distribution chart comparing ${state.scenarios.filter((s) => s.visible).length} scenarios`
+              : `Normal distribution chart: mean ${formatValue(state.mean)}, sigma ${formatValue(state.std)}, LSL ${formatValue(state.lsl)}, USL ${formatValue(state.usl)}. Drag the spec limit lines to adjust them.`
+          }
           style={{
-            border: '1px solid #e1e1e1',
+            border: `1px solid ${colors.border}`,
             borderRadius: 6,
             width: '100%',
             height: '100%',
             display: 'block',
+            touchAction: 'pan-y',
           }}
         />
+        {readout && hover && (
+          <>
+            <Box
+              aria-hidden
+              sx={{
+                position: 'absolute',
+                top: 0,
+                bottom: 30,
+                left: hover.px,
+                width: '1px',
+                bgcolor: colors.crosshair,
+                pointerEvents: 'none',
+              }}
+            />
+            <Box
+              aria-hidden
+              sx={{
+                position: 'absolute',
+                bottom: 40,
+                ...(tooltipOnLeft ? { right: size.width - hover.px + 8 } : { left: hover.px + 8 }),
+                bgcolor: 'background.paper',
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                boxShadow: 2,
+                px: 1,
+                py: 0.5,
+                pointerEvents: 'none',
+                minWidth: 140,
+                maxWidth: 260,
+              }}
+            >
+              <Typography variant="caption" fontWeight={700} display="block">
+                x = {formatValue(readout.x)}
+              </Typography>
+              {readout.rows.map((row) => (
+                <Typography
+                  key={row.name}
+                  variant="caption"
+                  display="block"
+                  sx={{
+                    color: 'text.secondary',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  <Box component="span" sx={{ color: row.color, fontWeight: 700 }}>
+                    ■
+                  </Box>{' '}
+                  {readout.rows.length > 1 ? `${row.name}: ` : ''}z={row.z.toFixed(2)} · ≤x{' '}
+                  {formatPercent(phi(row.z) * 100)} · &gt;x {formatPercent(phi(-row.z) * 100)}
+                </Typography>
+              ))}
+            </Box>
+          </>
+        )}
       </Box>
     </Paper>
   );

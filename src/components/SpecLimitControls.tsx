@@ -17,20 +17,22 @@ import {
   HelpOutline as HelpIcon,
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
+import { formatInput, syncInput, limitSliderRange, roundToStep } from '../utils/format';
 
 export default function SpecLimitControls() {
   const { state, dispatch } = useApp();
   const [lslError, setLslError] = useState<string>('');
   const [uslError, setUslError] = useState<string>('');
-  const [lslInput, setLslInput] = useState(state.lsl.toString());
-  const [uslInput, setUslInput] = useState(state.usl.toString());
+  const [lslInput, setLslInput] = useState(formatInput(state.lsl));
+  const [uslInput, setUslInput] = useState(formatInput(state.usl));
+  const range = limitSliderRange(state.mean, state.std, state.lsl, state.usl);
 
   useEffect(() => {
-    setLslInput(state.lsl.toString());
+    setLslInput((prev) => syncInput(prev, state.lsl));
   }, [state.lsl]);
 
   useEffect(() => {
-    setUslInput(state.usl.toString());
+    setUslInput((prev) => syncInput(prev, state.usl));
   }, [state.usl]);
 
   const handleLslChange = (value: string) => {
@@ -108,12 +110,12 @@ export default function SpecLimitControls() {
                   onChange={(e) => handleLslChange(e.target.value)}
                   onBlur={() => {
                     if (!lslInput.trim()) {
-                      setLslInput(state.lsl.toString());
+                      setLslInput(formatInput(state.lsl));
                       setLslError('');
                     }
                   }}
                   inputProps={{
-                    step: 0.1,
+                    step: range.step,
                     'aria-label': 'Lower spec limit',
                   }}
                   size="small"
@@ -127,7 +129,7 @@ export default function SpecLimitControls() {
                 )}
                 {!lslError && (
                   <FormHelperText sx={{ mx: 0, fontSize: '0.7rem' }}>
-                    step: 0.1
+                    step: {range.step}
                   </FormHelperText>
                 )}
               </Box>
@@ -135,13 +137,13 @@ export default function SpecLimitControls() {
                 value={state.lsl}
                 onChange={(_, val) => {
                   setLslError('');
-                  const numVal = val as number;
-                  setLslInput(numVal.toString());
+                  const numVal = roundToStep(Math.min(val as number, state.usl - range.step), range.step);
+                  setLslInput(formatInput(numVal));
                   dispatch({ type: 'SET_LSL', payload: numVal });
                 }}
-                min={-10}
-                max={10}
-                step={0.1}
+                min={range.min}
+                max={range.max}
+                step={range.step}
                 sx={{ flex: 1, mt: 1.5 }}
                 aria-label="Lower spec limit slider"
               />
@@ -167,12 +169,12 @@ export default function SpecLimitControls() {
                   onChange={(e) => handleUslChange(e.target.value)}
                   onBlur={() => {
                     if (!uslInput.trim()) {
-                      setUslInput(state.usl.toString());
+                      setUslInput(formatInput(state.usl));
                       setUslError('');
                     }
                   }}
                   inputProps={{
-                    step: 0.1,
+                    step: range.step,
                     'aria-label': 'Upper spec limit',
                   }}
                   size="small"
@@ -186,7 +188,7 @@ export default function SpecLimitControls() {
                 )}
                 {!uslError && (
                   <FormHelperText sx={{ mx: 0, fontSize: '0.7rem' }}>
-                    step: 0.1
+                    step: {range.step}
                   </FormHelperText>
                 )}
               </Box>
@@ -194,13 +196,13 @@ export default function SpecLimitControls() {
                 value={state.usl}
                 onChange={(_, val) => {
                   setUslError('');
-                  const numVal = val as number;
-                  setUslInput(numVal.toString());
+                  const numVal = roundToStep(Math.max(val as number, state.lsl + range.step), range.step);
+                  setUslInput(formatInput(numVal));
                   dispatch({ type: 'SET_USL', payload: numVal });
                 }}
-                min={-10}
-                max={10}
-                step={0.1}
+                min={range.min}
+                max={range.max}
+                step={range.step}
                 sx={{ flex: 1, mt: 1.5 }}
                 aria-label="Upper spec limit slider"
               />

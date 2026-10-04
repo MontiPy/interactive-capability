@@ -18,7 +18,7 @@ import { useApp } from '../context/AppContext';
 import { presets } from '../utils/presets';
 import { computeStats } from '../utils/stats';
 
-export default function PresetsMenu() {
+export default function PresetsMenu({ compact = false }: { compact?: boolean }) {
   const { state, dispatch } = useApp();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [toastOpen, setToastOpen] = useState(false);
@@ -52,12 +52,14 @@ export default function PresetsMenu() {
   return (
     <>
       <Button
-        variant="outlined"
+        variant={compact ? 'text' : 'outlined'}
+        size={compact ? 'small' : 'medium'}
         startIcon={<BookmarkIcon />}
         onClick={handleClick}
         aria-label="Load preset configuration"
+        sx={{ ml: 1, whiteSpace: 'nowrap', flexShrink: 0 }}
       >
-        Load Preset
+        {compact ? 'Presets' : 'Load Preset'}
       </Button>
       <Menu
         anchorEl={anchorEl}
