@@ -32,7 +32,7 @@ The application uses a **tab-based navigation system** with two distinct modes:
 - Controls for μ, σ, LSL, USL
 - Import data affects primary distribution
 - Chart shows only the primary distribution
-- "Add to Comparison" button to create scenarios
+- "Save as Scenario for Comparison" button to create scenarios
 
 **Tab 2: Scenario Comparison** - Comparing multiple distributions
 - Full-view Scenario Manager with inline editing
@@ -43,20 +43,22 @@ The application uses a **tab-based navigation system** with two distinct modes:
 - Import data creates new scenarios
 
 ### Layout Structure
-The application uses a **two-column responsive layout** with a 40/60 split:
+The application uses a **fixed-width sidebar + fluid main area** (`Layout.tsx`, flexbox, no Grid):
 
 **Header:**
-- Title and Tab Navigation (on desktop)
-- PresetsMenu on the right
-- Mobile: Hamburger menu to open drawer
+- Logo mark, title (full title ≥ lg, hidden md–lg, short "Cp/Cpk Playground" on phones) and Tab Navigation (md+)
+- Undo / Redo / Reset / dark-mode toggle, then PresetsMenu (single tab)
+- Phones: a second sticky row holds the tabs (short labels) and a compact "Presets" button
 
-**Left Column (40% width - `lg={4.8}`):**
-Content changes based on active tab:
-- **Single Tab**: Distribution Controls, Spec Limit Controls, Display Controls, Import Data, Advanced Stats, Add to Comparison
-- **Comparison Tab**: Enhanced Scenario Manager (fullView mode), Add New Scenario, Import Data as Scenario, Advanced Stats
-- Vertical scrolling enabled when content overflows
+**Sidebar (340px md, 380px lg):**
+- Panel header row ("Process & Specs" / "Scenarios") with a collapse chevron; collapsing leaves a 48px rail with an expand button
+- **Single Tab**: Process Distribution, Specification Limits, Chart Display (collapsed by default), then a sticky footer with "Save as Scenario for Comparison" and "Import Measurement Data"
+- **Comparison Tab**: Scenario Manager (fullView) with a sticky footer: Add Blank Scenario, Preset, Import Data
+- Scrolls independently; footers are sticky only on md+
 
-**Right Column (60% width - `lg={7.2}`):**
+**Phones (< md):** no sidebar or drawer. The page scrolls: chart (fixed height), metrics, then the same controls inline.
+
+**Main area:**
 - Uses flexbox (`display: 'flex', flexDirection: 'column'`)
 - Chart container: `flex: '1 1 auto'` (grows to fill available space)
   - Filters scenarios based on activeTab
@@ -78,12 +80,14 @@ src/
 ├── context/
 │   ├── appReducer.ts     →  Pure reducer + undo/redo history (unit tested)
 │   ├── AppContext.tsx    →  Provider: initial load (session + URL), persistence, URL sync
-│   └── ColorModeContext.tsx → Theme provider with light/dark toggle
+│   ├── ColorModeContext.tsx → Theme provider with light/dark toggle
+│   └── NotifyContext.tsx →  Toasts with optional Undo action
 ├── hooks/
 │   ├── useCapabilitySubject.ts → Focused scenario or primary distribution being reported
 │   └── useKeyboardShortcuts.ts → Ctrl/⌘+Z undo, Ctrl/⌘+Shift+Z / Ctrl+Y redo
 ├── components/
 │   ├── TabNavigation.tsx           →  Tab navigation component
+│   ├── ParameterField.tsx          →  Shared slider + numeric input row
 │   ├── SingleDistributionPanel.tsx →  Single distribution tab content
 │   ├── ComparisonPanel.tsx         →  Scenario comparison tab content
 │   ├── ComparisonStatsTable.tsx    →  Multi-scenario comparison table
@@ -166,15 +170,12 @@ src/
 - DevicePixelRatio scaling for crisp rendering
 
 ### 3. Collapsible Accordion Controls
-- **All left-panel sections** now use Material-UI Accordions (defaultExpanded on desktop)
-- **Tooltips**: Help icons (?) next to section titles and individual controls explaining:
-  - What each parameter controls
-  - Impact on capability metrics
-- **Enhanced inputs**:
-  - Numeric text fields with steppers synced to sliders
-  - Live validation with inline error messages
-  - Helper text showing step size (e.g., "step: 0.01")
-  - Clamping to safe ranges (-100 to 100 for mean, >0 for std, LSL < USL)
+- **Sidebar sections** use outlined MUI Accordions (styled globally in `theme.ts`)
+- **`ParameterField`** is the shared control row: label + help tooltip, then slider and numeric field (with a μ / σ / LSL / USL prefix)
+  - Slider ranges and steps scale with the process (`format.ts`)
+  - Typing commits valid values immediately; invalid input shows an inline error and reverts on blur
+  - σ > 0 and LSL < USL are enforced; sliders cannot cross the other limit
+- Spec section shows tolerance width and midpoint
 
 ### 4. Display Controls with Hybrid Auto-Viewport
 - **Auto Range toggle**: Automatically calculates optimal viewport using hybrid algorithm
@@ -228,7 +229,8 @@ src/
 - **Focus control**: Radio button icon to drive main capability metrics display
   - Focused scenario's metrics shown in StatsDisplay with color chip indicator
   - Unfocused: primary distribution metrics shown (default)
-- **Actions**: Focus toggle, Visibility toggle (eye icon), Edit (in fullView), Duplicate, Delete
+- **Actions**: Edit, Focus toggle and Visibility (eye icon) inline; Goal seek, Duplicate and Delete in a "More actions" (⋮) menu
+- Cp/Cpk chips are colour-coded; the focused card gets a primary-colour ring
 - **Move up / down** buttons reorder scenarios (undoable)
 - **Accordion with smart expand**: Collapses when empty, expands when scenarios exist (Single tab)
 - **Empty state**: Helpful message with "Add New Scenario" button and "Go to Single Distribution" option
@@ -247,8 +249,8 @@ src/
   - Displays centered mean with maximum achievable Cpk
   - Shows required parameters if target too high for current constraints
 - **Visual feedback**: Color-coded preview (green for success, red Alert for errors)
-- **Integration**: Calculator icon (⚙️) button on scenario cards in Comparison tab (fullView mode)
-  - Positioned between Edit and Focus buttons
+- **Integration**: "Goal seek…" in a scenario card's ⋮ menu (Comparison tab)
+- Preview shows before → after for the adjusted parameter and the achieved Cpk (colour-coded)
 - **Mathematical approach**: Closed-form analytical solutions (no iterative methods)
   - Fast execution (<1ms)
   - Deterministic results
@@ -269,7 +271,7 @@ src/
   - Active preset indicator (checkmark icon)
   - Preview chips showing Cp, Cpk, σ for each preset
   - Hover/active states for better interactivity
-- **Toast notification**: "Preset '{name}' loaded successfully" on selection
+- **Toast notification** with an Undo button on selection
 - 5 preset configurations: Six Sigma, Tight Tolerance, Off-Center, Minimum Capability, Wide Tolerance
 
 ### 11. Advanced Stats Dialog
@@ -286,25 +288,25 @@ src/
 - Export button sits next to the metrics (and on the comparison table)
 
 ### 13. Responsive Layout & Mobile Support
-- **Collapse left panel button** (chevron icon) for full-width chart mode on desktop
-- **Mobile drawer**: Left controls slide in from left on mobile/tablet
-  - Hamburger menu icon in header
-  - 85% screen width, max 400px
-  - Auto-closes after opening Import/Stats dialogs
-- **Expand button**: Floating button on left edge when panel collapsed
-- Fully responsive grid system maintains 40/60 split on desktop, full-width on mobile
+- **Collapse panel** (chevron in the sidebar header) for a full-width chart; a slim rail holds the expand button
+- **Phones**: controls render inline below the metrics (no hidden drawer); header and tabs stay sticky
+- Comparison table keeps the scenario name column sticky and lists capability columns first so they stay visible on narrow screens
 
 ### 14. Capability Metrics Panel
 - Cards: Cp, Cpk (with 95% CIs when n is known), Pp/Ppk (when overall σ is known), Cpm (when a target is set), PPM out (↓ below · ↑ above), Yield
 - Verdict chip (Capable / Marginal / Not capable) and a one-line recommendation (re-centre vs reduce σ, with the required σ)
 - **Details** opens the Advanced Stats dialog for the focused scenario or primary: CPU/CPL, Pp/Ppk, PPM split, Z.bench, sigma level, Cpm target, imported-data diagnostics
 
-### 15. Undo/Redo, Persistence, Dark Mode
+### 15. Notifications
+- `NotifyContext` provides `useNotify()` for app-wide toasts (bottom-centre)
+- Pass `{ undoable: true }` to add an **Undo** button (used for delete scenario, reset, preset load, save as scenario, import / remove data)
+
+### 16. Undo/Redo, Persistence, Dark Mode
 - Header buttons: Undo, Redo, Reset (undoable), light/dark toggle; keyboard shortcuts outside text fields
 - Session restored on reload; dark mode follows the OS until toggled (stored separately)
 - On phones the tabs move to a second header row with short labels ("Single" / "Compare")
 
-### 16. Accessibility Enhancements
+### 17. Accessibility Enhancements
 - **ARIA labels** on all interactive controls, including:
   - All help icon buttons with descriptive labels
   - Scenario action buttons (focus, visibility, duplicate, delete)

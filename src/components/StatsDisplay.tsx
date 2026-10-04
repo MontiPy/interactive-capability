@@ -1,5 +1,9 @@
 import { Box, Paper, Typography, Chip, Button, Tooltip } from '@mui/material';
-import { Download as DownloadIcon, Insights as InsightsIcon } from '@mui/icons-material';
+import {
+  Download as DownloadIcon,
+  Insights as InsightsIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { useCapabilitySubject } from '../hooks/useCapabilitySubject';
 import {
@@ -88,7 +92,7 @@ function buildInsight(cp: number, cpk: number, mean: number, lsl: number, usl: n
 }
 
 export default function StatsDisplay({ onOpenAdvanced, onOpenExportMenu }: StatsDisplayProps) {
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
   const subject = useCapabilitySubject();
 
   // In comparison mode with no focused scenario, show comparison table
@@ -123,9 +127,28 @@ export default function StatsDisplay({ onOpenAdvanced, onOpenExportMenu }: Stats
           <Typography variant="h6">Capability Metrics</Typography>
           {subject.isScenario && (
             <Chip
-              label={`Focused: ${subject.label}`}
+              label={subject.label}
               size="small"
-              sx={{ bgcolor: subject.color || 'primary.main', color: '#fff', fontWeight: 600 }}
+              onDelete={() => dispatch({ type: 'SET_FOCUSED_SCENARIO', payload: null })}
+              deleteIcon={
+                <Tooltip
+                  title={
+                    state.activeTab === 'comparison' ? 'Back to comparison table' : 'Clear focus'
+                  }
+                >
+                  <CloseIcon />
+                </Tooltip>
+              }
+              sx={{
+                bgcolor: subject.color || 'primary.main',
+                color: '#fff',
+                fontWeight: 600,
+                maxWidth: 220,
+                '& .MuiChip-deleteIcon': {
+                  color: 'rgba(255,255,255,0.8)',
+                  '&:hover': { color: '#fff' },
+                },
+              }}
             />
           )}
           {stats && verdict && (

@@ -69,7 +69,10 @@ export function createAppTheme(mode: ColorMode = 'light'): Theme {
             textTransform: 'none',
             borderRadius: 8,
             fontWeight: 500,
-            padding: '8px 20px',
+            whiteSpace: 'nowrap',
+          },
+          sizeMedium: {
+            padding: '7px 18px',
           },
           contained: {
             boxShadow: '0 4px 12px rgba(0, 123, 255, 0.2)',
@@ -107,6 +110,49 @@ export function createAppTheme(mode: ColorMode = 'light'): Theme {
             '& .MuiSlider-rail': {
               height: 6,
             },
+          },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            textTransform: 'none',
+            fontWeight: 600,
+            fontSize: '0.95rem',
+            minHeight: 48,
+          },
+        },
+      },
+      MuiAccordion: {
+        defaultProps: {
+          disableGutters: true,
+          elevation: 0,
+        },
+        styleOverrides: {
+          root: ({ theme }) => ({
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: 12,
+            overflow: 'hidden',
+            '&::before': { display: 'none' },
+          }),
+        },
+      },
+      MuiAccordionSummary: {
+        styleOverrides: {
+          root: {
+            minHeight: 52,
+            paddingLeft: 16,
+            paddingRight: 12,
+          },
+          content: {
+            margin: '10px 0',
+          },
+        },
+      },
+      MuiAccordionDetails: {
+        styleOverrides: {
+          root: {
+            padding: '0 16px 16px',
           },
         },
       },
@@ -160,6 +206,7 @@ export interface ChartColors {
   specLine: string;
   histogram: string;
   crosshair: string;
+  labelBackdrop: string;
 }
 
 export function getChartColors(mode: ColorMode): ChartColors {
@@ -178,6 +225,7 @@ export function getChartColors(mode: ColorMode): ChartColors {
       specLine: '#F0616D',
       histogram: 'rgba(170, 180, 190, 0.35)',
       crosshair: 'rgba(230, 233, 236, 0.5)',
+      labelBackdrop: 'rgba(23, 27, 33, 0.85)',
     };
   }
   return {
@@ -194,5 +242,6 @@ export function getChartColors(mode: ColorMode): ChartColors {
     specLine: '#d62728',
     histogram: 'rgba(150, 150, 150, 0.3)',
     crosshair: 'rgba(0, 0, 0, 0.35)',
+    labelBackdrop: 'rgba(255, 255, 255, 0.85)',
   };
 }

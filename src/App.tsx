@@ -1,59 +1,50 @@
-import { Box, Snackbar, Alert } from '@mui/material';
+import { Box } from '@mui/material';
+import { useState } from 'react';
 import Chart from './components/Chart';
 import StatsDisplay from './components/StatsDisplay';
 import ExportMenu from './components/ExportMenu';
 import DataImportDialog from './components/DataImportDialog';
 import AdvancedStatsDialog from './components/AdvancedStatsDialog';
-import React, { Suspense, useState } from 'react';
 import ComparisonPanel from './components/ComparisonPanel';
-import Layout from './components/Layout'; // Import the new Layout component
+import SingleDistributionPanel from './components/SingleDistributionPanel';
+import Layout from './components/Layout';
 import { useApp } from './context/AppContext';
+import { useNotify } from './context/NotifyContext';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-
-const SingleDistributionPanel = React.lazy(() => import('./components/SingleDistributionPanel'));
 
 export default function App() {
   const { state } = useApp();
+  const notify = useNotify();
   useKeyboardShortcuts();
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
   const [dataImportOpen, setDataImportOpen] = useState(false);
   const [advancedStatsOpen, setAdvancedStatsOpen] = useState(false);
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
 
-  const handleSnackbarClose = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
-
-  const showSnackbar = (message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'success') => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const controlsContent = state.activeTab === 'single' ? (
-    <Suspense fallback={<div />}> 
+  const controlsContent =
+    state.activeTab === 'single' ? (
       <SingleDistributionPanel
         onImportData={() => setDataImportOpen(true)}
-        onAdvancedStats={() => setAdvancedStatsOpen(true)}
-        onScenarioAdded={() => showSnackbar('Added to Scenario Comparison', 'success')}
+        onScenarioAdded={() => notify('Saved as a scenario for comparison', 'success', { undoable: true })}
       />
-    </Suspense>
-  ) : (
-    <ComparisonPanel
-      onImportData={() => setDataImportOpen(true)}
-    />
-  );
+    ) : (
+      <ComparisonPanel onImportData={() => setDataImportOpen(true)} />
+    );
 
   return (
     <>
-      <Layout controlsContent={controlsContent} onNotify={showSnackbar}>
-        <Box sx={{ flex: '1 1 auto', minHeight: { xs: 360, md: 0 }, mb: 2 }}>
+      <Layout controlsContent={controlsContent}>
+        <Box
+          sx={{
+            flex: { md: '1 1 auto' },
+            height: { xs: 340, sm: 420, md: 'auto' },
+            minHeight: { md: 0 },
+            mb: 2,
+          }}
+        >
           <Chart />
         </Box>
         <Box sx={{ flex: '0 0 auto' }}>
-          <StatsDisplay 
+          <StatsDisplay
             onOpenAdvanced={() => setAdvancedStatsOpen(true)}
             onOpenExportMenu={(e) => setExportMenuAnchor(e.currentTarget)}
           />
@@ -64,30 +55,16 @@ export default function App() {
         anchorEl={exportMenuAnchor}
         open={Boolean(exportMenuAnchor)}
         onClose={() => setExportMenuAnchor(null)}
-        onNotify={showSnackbar}
+        onNotify={notify}
       />
 
       <DataImportDialog
         open={dataImportOpen}
         onClose={() => setDataImportOpen(false)}
-        onImported={(message) => showSnackbar(message, 'success')}
+        onImported={(message) => notify(message, 'success', { undoable: true })}
       />
 
-      <AdvancedStatsDialog
-        open={advancedStatsOpen}
-        onClose={() => setAdvancedStatsOpen(false)}
-      />
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+      <AdvancedStatsDialog open={advancedStatsOpen} onClose={() => setAdvancedStatsOpen(false)} />
     </>
   );
 }

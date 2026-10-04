@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { CloudUpload as UploadIcon } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
+import { useNotify } from '../context/NotifyContext';
 import { parseNumericData, summarizeData } from '../utils/stats';
 import { formatValue } from '../utils/rendering';
 import { formatInput } from '../utils/format';
@@ -39,6 +40,7 @@ function generateExampleData(): string {
 
 export default function DataImportDialog({ open, onClose, onImported }: DataImportDialogProps) {
   const { state, dispatch } = useApp();
+  const notify = useNotify();
   const asScenario = state.activeTab === 'comparison';
   const [text, setText] = useState('');
   const [scenarioName, setScenarioName] = useState('');
@@ -119,6 +121,7 @@ export default function DataImportDialog({ open, onClose, onImported }: DataImpo
 
   const handleClearData = () => {
     dispatch({ type: 'CLEAR_DATA' });
+    notify('Imported data removed', 'info', { undoable: true });
     reset();
     onClose();
   };

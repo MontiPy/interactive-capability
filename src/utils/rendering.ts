@@ -26,7 +26,34 @@ export interface RenderOptions {
 
 /** Vertical layout shared by the renderer and pointer interaction */
 export const CHART_BOTTOM_MARGIN = 30;
-export const CHART_TOP_MARGIN = 50;
+/** Top margin in single mode: σ axis band, spec-label band, then the mean label */
+export const CHART_TOP_MARGIN = 84;
+const COMPARISON_TOP_MARGIN = 44;
+
+/** Canvas font stack matching the UI typography */
+const FONT = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+const font = (size: number, weight: number | 'normal' = 'normal') => `${weight} ${size}px ${FONT}`;
+
+/** Text with a translucent backdrop so lines passing behind it don't hurt legibility */
+function fillTextWithBackdrop(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  backdrop: string,
+  height: number,
+) {
+  const width = ctx.measureText(text).width;
+  const left =
+    ctx.textAlign === 'center' ? x - width / 2 : ctx.textAlign === 'right' ? x - width : x;
+  const top =
+    ctx.textBaseline === 'top' ? y : ctx.textBaseline === 'bottom' ? y - height : y - height / 2;
+  const fill = ctx.fillStyle;
+  ctx.fillStyle = backdrop;
+  ctx.fillRect(left - 3, top - 1, width + 6, height + 2);
+  ctx.fillStyle = fill;
+  ctx.fillText(text, x, y);
+}
 
 export function chartBaselineY(height: number): number {
   return height - CHART_BOTTOM_MARGIN;
@@ -188,7 +215,10 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
   if (!(maxPdf > 0)) maxPdf = 1;
 
   const baselineY = chartBaselineY(h);
-  const plotHeight = Math.max(10, h - (CHART_TOP_MARGIN + CHART_BOTTOM_MARGIN));
+  const topMargin = showPrimary
+    ? CHART_TOP_MARGIN
+    : COMPARISON_TOP_MARGIN + Math.min(2, Math.max(0, visibleScenarios.length - 1)) * 10;
+  const plotHeight = Math.max(10, h - (topMargin + CHART_BOTTOM_MARGIN));
   const topLabelY = baselineY - plotHeight;
   const yForDensity = (d: number) => baselineY - (d / maxPdf) * plotHeight;
 
@@ -202,7 +232,7 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
 
   // Draw ticks and grid
   const tickValues = generateTicks(displayMin, displayMax, tickStep);
-  ctx.font = '12px Arial';
+  ctx.font = font(12);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
@@ -223,23 +253,13 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
     ctx.lineTo(px, baselineY + 6);
     ctx.stroke();
 
+    // Skip labels that would be clipped at the canvas edges
+    const label = formatTickLabel(t, tickFormat, tickStep);
+    const half = ctx.measureText(label).width / 2;
+    if (px - half < 1 || px + half > w - 1) return;
     ctx.fillStyle = colors.text;
-    ctx.fillText(formatTickLabel(t, tickFormat, tickStep), px, baselineY + 8);
+    ctx.fillText(label, px, baselineY + 8);
   });
-
-  // Draw histogram (clipped to the viewport) as densities so it lines up with the pdf
-  if (histogramVisible) {
-    ctx.fillStyle = colors.histogram;
-    histogramData.bins.forEach((bin) => {
-      const start = Math.max(bin.start, displayMin);
-      const end = Math.min(bin.end, displayMax);
-      if (end <= start) return;
-      const x1 = xToPx(start);
-      const x2 = xToPx(end);
-      const top = yForDensity(binDensity(bin, histogramData.sampleSize));
-      ctx.fillRect(x1, top, Math.max(1, x2 - x1 - 1), baselineY - top);
-    });
-  }
 
   // Helper: Draw normal curve
   const drawCurve = (
@@ -323,6 +343,20 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
     shadeRegion(lsl, usl, 'rgba(76,175,80,0.10)', false);
   }
 
+  // Draw histogram over the shading (clipped to the viewport) as densities so it lines up with the pdf
+  if (histogramVisible) {
+    ctx.fillStyle = colors.histogram;
+    histogramData.bins.forEach((bin) => {
+      const start = Math.max(bin.start, displayMin);
+      const end = Math.min(bin.end, displayMax);
+      if (end <= start) return;
+      const x1 = xToPx(start);
+      const x2 = xToPx(end);
+      const top = yForDensity(binDensity(bin, histogramData.sampleSize));
+      ctx.fillRect(x1, top, Math.max(1, x2 - x1 - 1), baselineY - top);
+    });
+  }
+
   // Draw primary distribution curve (only in single distribution mode)
   if (showPrimary) {
     drawCurve(mean, std, colors.primaryCurve, 2);
@@ -346,11 +380,19 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
     ctx.stroke();
     ctx.restore();
 
-    ctx.font = '12px Arial';
+    ctx.font = font(12);
+    ctx.font = font(12, 600);
     ctx.fillStyle = colors.meanLine;
-    ctx.textAlign = 'center';
+    ctx.textAlign = pxMean < 40 ? 'left' : pxMean > w - 40 ? 'right' : 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`μ=${formatValue(mean)}`, pxMean, topLabelY - 6);
+    fillTextWithBackdrop(
+      ctx,
+      `μ = ${formatValue(mean)}`,
+      pxMean,
+      topLabelY - 4,
+      colors.labelBackdrop,
+      13,
+    );
   }
 
   // Target marker (triangle on the axis)
@@ -369,7 +411,7 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
     ctx.lineTo(px + 6, baselineY - 11);
     ctx.closePath();
     ctx.fill();
-    ctx.font = '10px Arial';
+    ctx.font = font(10);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText('T', px, baselineY - 12);
@@ -382,7 +424,16 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
     const pctBelowLSL = phi(zLSL) * 100;
     const pctAboveUSL = phi(-zUSL) * 100;
 
-    const drawLimit = (value: number, label: string, z: number, pctText: string) => {
+    // When the limits sit close together, push their labels apart
+    const close = Math.abs(xToPx(usl) - xToPx(lsl)) < 130;
+
+    const drawLimit = (
+      value: number,
+      label: string,
+      z: number,
+      pctText: string,
+      side: 'lower' | 'upper',
+    ) => {
       if (value < displayMin || value > displayMax) return;
       const px = xToPx(value);
       ctx.save();
@@ -390,26 +441,42 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
       ctx.lineWidth = 1.5;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(px, 0);
+      // Start below the σ axis band so the line doesn't strike through its labels
+      ctx.moveTo(px, 24);
       ctx.lineTo(px, baselineY);
       ctx.stroke();
       ctx.restore();
 
       // Keep labels inside the canvas when a limit sits near an edge
-      const align: CanvasTextAlign = px < 50 ? 'left' : px > w - 50 ? 'right' : 'center';
-      const labelX = align === 'left' ? px + 4 : align === 'right' ? px - 4 : px;
+      let align: CanvasTextAlign = px < 60 ? 'left' : px > w - 60 ? 'right' : 'center';
+      if (close && align === 'center') align = side === 'lower' ? 'right' : 'left';
+      const labelX = align === 'left' ? px + 5 : align === 'right' ? px - 5 : px;
       ctx.fillStyle = colors.specLine;
       ctx.textAlign = align;
-      ctx.textBaseline = 'bottom';
-      ctx.font = 'bold 12px Arial';
-      ctx.fillText(`${label}: ${formatValue(value)}`, labelX, topLabelY - 24);
-      ctx.font = '10px Arial';
-      ctx.fillText(`z = ${z.toFixed(2)}`, labelX, topLabelY - 12);
-      ctx.fillText(pctText, labelX, topLabelY - 2);
+      ctx.textBaseline = 'top';
+      ctx.font = font(12, 700);
+      fillTextWithBackdrop(
+        ctx,
+        `${label} ${formatValue(value)}`,
+        labelX,
+        27,
+        colors.labelBackdrop,
+        13,
+      );
+      ctx.font = font(10);
+      ctx.fillStyle = colors.mutedText;
+      fillTextWithBackdrop(
+        ctx,
+        `z = ${z.toFixed(2)} · ${pctText}`,
+        labelX,
+        43,
+        colors.labelBackdrop,
+        11,
+      );
     };
 
-    drawLimit(lsl, 'LSL', zLSL, `${formatPercent(pctBelowLSL)} below`);
-    drawLimit(usl, 'USL', zUSL, `${formatPercent(pctAboveUSL)} above`);
+    drawLimit(lsl, 'LSL', zLSL, `${formatPercent(pctBelowLSL)} below`, 'lower');
+    drawLimit(usl, 'USL', zUSL, `${formatPercent(pctAboveUSL)} above`, 'upper');
   }
 
   // Draw scenario-specific LSL/USL lines (in comparison mode)
@@ -435,7 +502,7 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
 
         // Stagger labels so coincident limits from different scenarios stay legible
         ctx.fillStyle = scenario.color;
-        ctx.font = '9px Arial';
+        ctx.font = font(9, 600);
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText(label, px, 2 + (index % 3) * 10);
@@ -445,7 +512,7 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
 
   // Draw top axis sigma markers (only for primary distribution)
   if (showPrimary) {
-    ctx.font = '11px Arial';
+    ctx.font = font(11);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     const topY = 18;
@@ -466,8 +533,11 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
         ctx.stroke();
 
         if (n % labelEvery !== 0) return;
-        ctx.fillStyle = colors.text;
-        ctx.fillText((sign > 0 ? '+' : '-') + n + 'σ', px, topY - 2);
+        const label = (sign > 0 ? '+' : '−') + n + 'σ';
+        const half = ctx.measureText(label).width / 2;
+        if (px - half < 1 || px + half > w - 1) return;
+        ctx.fillStyle = colors.mutedText;
+        ctx.fillText(label, px, topY - 2);
       });
     }
   }
@@ -493,7 +563,7 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
 
   if (legendItems.length > 0) {
     ctx.save();
-    ctx.font = '11px Arial';
+    ctx.font = font(11);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
@@ -511,7 +581,7 @@ export function renderPlot(canvas: HTMLCanvasElement, options: RenderOptions): v
     const legendWidth = maxWidth + padding * 2;
     const legendHeight = legendItems.length * lineHeight + padding * 2;
     const legendX = w - legendWidth - 10;
-    const legendY = 30;
+    const legendY = topMargin - 12;
 
     ctx.fillStyle = colors.legendBackground;
     ctx.fillRect(legendX, legendY, legendWidth, legendHeight);

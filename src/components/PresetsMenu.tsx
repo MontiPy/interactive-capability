@@ -6,8 +6,6 @@ import {
   Box,
   Typography,
   Chip,
-  Snackbar,
-  Alert,
   ListItemIcon,
 } from '@mui/material';
 import {
@@ -15,14 +13,14 @@ import {
   CheckCircle as CheckIcon,
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
+import { useNotify } from '../context/NotifyContext';
 import { presets } from '../utils/presets';
 import { computeStats } from '../utils/stats';
 
 export default function PresetsMenu({ compact = false }: { compact?: boolean }) {
   const { state, dispatch } = useApp();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [toastOpen, setToastOpen] = useState(false);
-  const [loadedPresetName, setLoadedPresetName] = useState('');
+  const notify = useNotify();
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
@@ -34,8 +32,7 @@ export default function PresetsMenu({ compact = false }: { compact?: boolean }) 
 
   const handleSelectPreset = (preset: typeof presets[0]) => {
     dispatch({ type: 'LOAD_PRESET', payload: preset.state });
-    setLoadedPresetName(preset.name);
-    setToastOpen(true);
+    notify(`Loaded preset “${preset.name}”`, 'success', { undoable: true });
     handleClose();
   };
 
@@ -126,21 +123,6 @@ export default function PresetsMenu({ compact = false }: { compact?: boolean }) 
         })}
       </Menu>
 
-      <Snackbar
-        open={toastOpen}
-        autoHideDuration={3000}
-        onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setToastOpen(false)}
-          severity="success"
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          Preset "{loadedPresetName}" loaded successfully
-        </Alert>
-      </Snackbar>
     </>
   );
 }

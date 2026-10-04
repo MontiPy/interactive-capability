@@ -232,7 +232,6 @@ export default function Chart() {
               : `Normal distribution chart: mean ${formatValue(state.mean)}, sigma ${formatValue(state.std)}, LSL ${formatValue(state.lsl)}, USL ${formatValue(state.usl)}. Drag the spec limit lines to adjust them.`
           }
           style={{
-            border: `1px solid ${colors.border}`,
             borderRadius: 6,
             width: '100%',
             height: '100%',
@@ -240,6 +239,30 @@ export default function Chart() {
             touchAction: 'pan-y',
           }}
         />
+        {isComparison && !scenarios.some((sc) => sc.visible) && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              px: 3,
+              pointerEvents: 'none',
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight={700}>
+              {scenarios.length === 0 ? 'Nothing to compare yet' : 'All scenarios are hidden'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
+              {scenarios.length === 0
+                ? 'Add a scenario from the panel, or save the current process with “Save as Scenario” on the Single Distribution tab.'
+                : 'Use the eye icon on a scenario card to show it on the chart.'}
+            </Typography>
+          </Box>
+        )}
         {readout && hover && (
           <>
             <Box
