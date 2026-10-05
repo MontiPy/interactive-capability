@@ -8,129 +8,174 @@ import {
   Paper,
   Typography,
   Box,
-  IconButton,
+  Button,
   Tooltip,
 } from '@mui/material';
-import { RadioButtonChecked as FocusedIcon } from '@mui/icons-material';
+import { Download as DownloadIcon } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { computeStats, computeAdvancedStats } from '../utils/stats';
+import { getCapabilityColor } from '../theme';
+import { formatPpm } from '../utils/format';
+import { formatValue } from '../utils/rendering';
 
-export default function ComparisonStatsTable() {
+interface ComparisonStatsTableProps {
+  onOpenExportMenu?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}
+
+const headCellSx = { bgcolor: 'background.paper', fontWeight: 700, whiteSpace: 'nowrap' } as const;
+
+export default function ComparisonStatsTable({ onOpenExportMenu }: ComparisonStatsTableProps) {
   const { state, dispatch } = useApp();
-
   const visibleScenarios = state.scenarios.filter((s) => s.visible);
 
   if (visibleScenarios.length === 0) {
     return (
-      <Paper elevation={2} sx={{ p: 3, textAlign: 'center' }}>
+      <Paper elevation={1} sx={{ p: 3, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          No visible scenarios to compare. Toggle scenario visibility to see comparison data.
+          {state.scenarios.length === 0
+            ? 'Scenario metrics will appear here once you add a scenario.'
+            : 'No visible scenarios. Show a scenario to compare its metrics.'}
         </Typography>
       </Paper>
     );
   }
 
-  const handleFocusScenario = (scenarioId: string) => {
-    dispatch({
-      type: 'SET_FOCUSED_SCENARIO',
-      payload: state.focusedScenarioId === scenarioId ? null : scenarioId,
-    });
-  };
+  // Highlight the best Cpk so the comparison has an obvious answer
+  const rows = visibleScenarios.map((scenario) => ({
+    scenario,
+    stats: computeStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl),
+    adv: computeAdvancedStats(
+      scenario.mean,
+      scenario.std,
+      scenario.lsl,
+      scenario.usl,
+      scenario.overallStd
+    ),
+  }));
+  const bestCpk = Math.max(...rows.map((r) => r.stats?.cpk ?? -Infinity));
+  // Only call out a winner when it is unique
+  const bestCount = rows.filter((r) => r.stats && Math.abs(r.stats.cpk - bestCpk) < 1e-9).length;
 
   return (
-    <Paper elevation={2} sx={{ p: 2, maxHeight: '300px', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h6" gutterBottom>
-        Scenario Comparison
-      </Typography>
-      <TableContainer sx={{ maxHeight: '250px', overflowY: 'auto' }}>
-        <Table size="small" stickyHeader>
+    <Paper
+      elevation={1}
+      sx={{ p: 2, maxHeight: { md: 'min(340px, 40vh)' }, display: 'flex', flexDirection: 'column' }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Box>
+          <Typography variant="h6">Scenario Comparison</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Click a row to focus a scenario and see its detailed metrics.
+          </Typography>
+        </Box>
+        {onOpenExportMenu && (
+          <Button size="small" onClick={onOpenExportMenu} endIcon={<DownloadIcon />}>
+            Export
+          </Button>
+        )}
+      </Box>
+      <TableContainer sx={{ overflow: 'auto', minHeight: 0 }}>
+        <Table size="small" stickyHeader aria-label="Scenario comparison">
           <TableHead>
             <TableRow>
-              <TableCell sx={{ bgcolor: 'background.paper' }}></TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }}>Scenario</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">μ</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">σ</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">LSL</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">USL</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Cp</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Cpk</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Pp</TableCell>
-              <TableCell sx={{ bgcolor: 'background.paper' }} align="right">Ppk</TableCell>
+              <TableCell sx={{ ...headCellSx, position: 'sticky', left: 0, zIndex: 3 }}>
+                Scenario
+              </TableCell>
+              {['Cp', 'Cpk', 'Pp', 'Ppk', 'PPM', 'μ', 'σ', 'LSL', 'USL'].map((h) => (
+                <TableCell key={h} sx={headCellSx} align="right">
+                  {h}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {visibleScenarios.map((scenario) => {
-              const stats = computeStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl);
-              const advStats = computeAdvancedStats(
-                scenario.mean,
-                scenario.std,
-                scenario.lsl,
-                scenario.usl
+            {rows.map(({ scenario, stats, adv }) => {
+              if (!stats || !adv) return null;
+              const isBest = bestCount === 1 && rows.length > 1 && stats.cpk === bestCpk;
+              const capCell = (v: number) => (
+                <TableCell
+                  align="right"
+                  sx={{ fontWeight: 700, color: getCapabilityColor(v), whiteSpace: 'nowrap' }}
+                >
+                  {v.toFixed(2)}
+                </TableCell>
               );
-              const isFocused = state.focusedScenarioId === scenario.id;
-
-              if (!stats || !advStats) return null;
-
               return (
                 <TableRow
                   key={scenario.id}
-                  sx={{
-                    bgcolor: isFocused ? 'action.selected' : 'transparent',
-                    borderLeft: `4px solid ${scenario.color}`,
-                    cursor: 'pointer',
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
+                  hover
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Focus ${scenario.name}`}
+                  onClick={() => dispatch({ type: 'SET_FOCUSED_SCENARIO', payload: scenario.id })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      dispatch({ type: 'SET_FOCUSED_SCENARIO', payload: scenario.id });
+                    }
                   }}
-                  onClick={() => handleFocusScenario(scenario.id)}
+                  sx={{ cursor: 'pointer', '&:last-child td': { borderBottom: 0 } }}
                 >
-                  <TableCell padding="checkbox">
-                    <Tooltip title={isFocused ? 'Focused (click to unfocus)' : 'Click to focus'}>
-                      <IconButton size="small" color={isFocused ? 'primary' : 'default'}>
-                        <FocusedIcon fontSize="small" sx={{ opacity: isFocused ? 1 : 0.3 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={isFocused ? 600 : 400}>
-                      {scenario.name}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">{scenario.mean.toFixed(2)}</TableCell>
-                  <TableCell align="right">{scenario.std.toFixed(2)}</TableCell>
-                  <TableCell align="right">{scenario.lsl.toFixed(2)}</TableCell>
-                  <TableCell align="right">{scenario.usl.toFixed(2)}</TableCell>
                   <TableCell
-                    align="right"
                     sx={{
-                      fontWeight: 600,
-                      color: stats.cp >= 1.33 ? 'success.main' : stats.cp >= 1.0 ? 'warning.main' : 'error.main',
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 1,
+                      bgcolor: 'background.paper',
+                      borderLeft: `4px solid ${scenario.color}`,
+                      maxWidth: 180,
                     }}
                   >
-                    {stats.cp.toFixed(2)}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap title={scenario.name}>
+                        {scenario.name}
+                      </Typography>
+                      {isBest && (
+                        <Tooltip title="Highest Cpk">
+                          <Box
+                            component="span"
+                            sx={{
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              color: 'success.main',
+                              border: 1,
+                              borderColor: 'success.main',
+                              borderRadius: 1,
+                              px: 0.5,
+                              flexShrink: 0,
+                            }}
+                          >
+                            BEST
+                          </Box>
+                        </Tooltip>
+                      )}
+                    </Box>
                   </TableCell>
-                  <TableCell
-                    align="right"
-                    sx={{
-                      fontWeight: 600,
-                      color: stats.cpk >= 1.33 ? 'success.main' : stats.cpk >= 1.0 ? 'warning.main' : 'error.main',
-                    }}
-                  >
-                    {stats.cpk.toFixed(2)}
+                  {capCell(stats.cp)}
+                  {capCell(stats.cpk)}
+                  <TableCell align="right">{adv.pp.toFixed(2)}</TableCell>
+                  <TableCell align="right">{adv.ppk.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                    {formatPpm(adv.dpmo)}
                   </TableCell>
-                  <TableCell align="right">{advStats.pp.toFixed(2)}</TableCell>
-                  <TableCell align="right">{advStats.ppk.toFixed(2)}</TableCell>
+                  <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                    {formatValue(scenario.mean)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                    {formatValue(scenario.std)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                    {formatValue(scenario.lsl)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                    {formatValue(scenario.usl)}
+                  </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
       </TableContainer>
-      <Box sx={{ mt: 2 }}>
-        <Typography variant="caption" color="text.secondary">
-          Click a row to focus that scenario and view detailed metrics.
-        </Typography>
-      </Box>
     </Paper>
   );
 }

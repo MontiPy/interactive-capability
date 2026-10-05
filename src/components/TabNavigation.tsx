@@ -18,15 +18,21 @@ export default function TabNavigation() {
       scrollButtons="auto"
       aria-label="Distribution analysis tabs"
     >
-      <Tab label="Single Distribution" value="single" aria-label="Single distribution analysis" />
+      <Tab
+        label={isMobile ? 'Single' : 'Single Distribution'}
+        value="single"
+        aria-label="Single distribution analysis"
+      />
       <Tab
         label={
           state.scenarios.length > 0 ? (
             <Badge badgeContent={state.scenarios.length} color="primary">
               <span style={{ paddingRight: state.scenarios.length > 0 ? '16px' : '0' }}>
-                Scenario Comparison
+                {isMobile ? 'Compare' : 'Scenario Comparison'}
               </span>
             </Badge>
+          ) : isMobile ? (
+            'Compare'
           ) : (
             'Scenario Comparison'
           )

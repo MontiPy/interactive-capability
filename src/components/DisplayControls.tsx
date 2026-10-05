@@ -9,14 +9,11 @@ import {
   Checkbox,
   Button,
   Stack,
-  Tooltip,
-  IconButton,
   Switch,
   Divider,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
-  HelpOutline as HelpIcon,
   RestartAlt as ResetIcon,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
@@ -27,7 +24,9 @@ export default function DisplayControls() {
   const isTickStepAuto = state.display.tickStep === null || state.display.tickStep === 0;
   const [displayMinInput, setDisplayMinInput] = useState(state.display.displayMin.toFixed(2));
   const [displayMaxInput, setDisplayMaxInput] = useState(state.display.displayMax.toFixed(2));
-  const [fitMultiplierInput, setFitMultiplierInput] = useState(state.display.fitMultiplier.toString());
+  const [fitMultiplierInput, setFitMultiplierInput] = useState(
+    state.display.fitMultiplier.toString(),
+  );
 
   useEffect(() => {
     setDisplayMinInput(state.display.displayMin.toFixed(2));
@@ -74,26 +73,32 @@ export default function DisplayControls() {
   };
 
   return (
-    <Accordion defaultExpanded>
+    <Accordion>
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
         aria-controls="display-content"
         id="display-header"
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Typography variant="h6">Chart Display</Typography>
-          <Tooltip title="Control the chart viewport, axis ticks, and display helpers.">
-            <IconButton size="small" sx={{ ml: 0.5 }} aria-label="Help for Chart Display controls">
-              <HelpIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, mr: 1 }}>
+          <Typography variant="subtitle1" fontWeight={700}>
+            Chart Display
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+            {state.display.fitToMean
+              ? `μ ± ${state.display.fitMultiplier}σ`
+              : state.display.autoRange
+                ? 'Auto range'
+                : 'Manual range'}
+          </Typography>
         </Box>
       </AccordionSummary>
       <AccordionDetails>
         <Stack spacing={2.5}>
           {/* A) Range Group */}
           <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}
+            >
               <Typography variant="body2" fontWeight={600}>
                 Viewport Range
               </Typography>
@@ -155,25 +160,31 @@ export default function DisplayControls() {
               />
             </Box>
             {state.display.autoRange && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                Auto uses max(μ±6σ, LSL−10% / USL+10%)
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mt: 0.5 }}
+              >
+                Auto fits μ±6σ and the spec limits (+10% of the tolerance)
               </Typography>
             )}
           </Box>
 
           {/* B) Zoom Group */}
-          <Box>
-            <Button
-              variant="outlined"
-              startIcon={<ResetIcon />}
-              onClick={handleResetZoom}
-              fullWidth
-              size="small"
-              aria-label="Reset zoom and viewport"
-            >
-              Reset Zoom
-            </Button>
-          </Box>
+          {!state.display.autoRange && (
+            <Box>
+              <Button
+                variant="outlined"
+                startIcon={<ResetIcon />}
+                onClick={handleResetZoom}
+                fullWidth
+                size="small"
+                aria-label="Reset zoom and viewport"
+              >
+                Back to auto range
+              </Button>
+            </Box>
+          )}
 
           <Divider />
 

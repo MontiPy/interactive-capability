@@ -119,7 +119,7 @@ export default function GoalSeekDialog({
           </Typography>
           <Typography variant="body2">{result.error}</Typography>
           {result.fallback && (
-            <Box sx={{ mt: 1, p: 1, bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 1 }}>
+            <Box sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
               <Typography variant="caption" display="block">
                 Best achievable with {adjustMode === 'mean' ? 'centered mean' : 'minimum σ'}:
               </Typography>
@@ -156,54 +156,45 @@ export default function GoalSeekDialog({
         )}
 
         <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            bgcolor: 'success.main',
-            color: 'white',
-            borderRadius: 2,
-          }}
+          variant="outlined"
+          sx={{ p: 2, borderRadius: 2, borderColor: 'success.main', borderWidth: 2 }}
         >
-          <Typography variant="body2" fontWeight={600} gutterBottom>
-            Calculated Values
+          <Typography variant="subtitle2" fontWeight={700} color="success.main" gutterBottom>
+            Proposed change
           </Typography>
 
           <Stack spacing={1}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2">Mean (μ):</Typography>
-              <Typography
-                variant="body2"
-                fontWeight={adjustMode === 'mean' ? 700 : 400}
-                sx={{
-                  textDecoration: adjustMode === 'mean' ? 'underline' : 'none',
-                }}
-              >
-                {previewMean.toFixed(3)}
-                {adjustMode === 'mean' && ` (Δ${(previewMean - scenario.mean >= 0 ? '+' : '')}${(previewMean - scenario.mean).toFixed(3)})`}
-              </Typography>
-            </Box>
+            {([
+              ['Mean (μ)', scenario.mean, previewMean, adjustMode === 'mean'],
+              ['Std Dev (σ)', scenario.std, previewStd, adjustMode === 'std'],
+            ] as const).map(([label, before, after, changed]) => (
+              <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {label}
+                </Typography>
+                <Typography variant="body2" fontWeight={changed ? 700 : 400}>
+                  {changed ? (
+                    <>
+                      {before.toFixed(3)} → {after.toFixed(3)}{' '}
+                      <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>
+                        ({after - before >= 0 ? '+' : ''}
+                        {(after - before).toFixed(3)})
+                      </Box>
+                    </>
+                  ) : (
+                    `${after.toFixed(3)} (unchanged)`
+                  )}
+                </Typography>
+              </Box>
+            ))}
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2">Std Dev (σ):</Typography>
-              <Typography
-                variant="body2"
-                fontWeight={adjustMode === 'std' ? 700 : 400}
-                sx={{
-                  textDecoration: adjustMode === 'std' ? 'underline' : 'none',
-                }}
-              >
-                {previewStd.toFixed(3)}
-                {adjustMode === 'std' && ` (Δ${(previewStd - scenario.std >= 0 ? '+' : '')}${(previewStd - scenario.std).toFixed(3)})`}
-              </Typography>
-            </Box>
+            <Divider />
 
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.3)' }} />
-
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <Typography variant="body2" fontWeight={600}>
-                Achieved Cpk:
+                Achieved Cpk
               </Typography>
-              <Typography variant="h6" fontWeight={700}>
+              <Typography variant="h6" fontWeight={700} sx={{ color: getCapabilityColor(previewCpk) }}>
                 {previewCpk.toFixed(3)}
               </Typography>
             </Box>
@@ -225,7 +216,7 @@ export default function GoalSeekDialog({
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 1 }}>
           {/* Current state */}
-          <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.100' }}>
+          <Paper elevation={0} sx={{ p: 2, bgcolor: 'action.hover' }}>
             <Typography variant="caption" color="text.secondary" gutterBottom display="block">
               CURRENT VALUES
             </Typography>

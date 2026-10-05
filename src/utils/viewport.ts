@@ -7,21 +7,22 @@ export interface ViewportBounds {
   displayMax: number;
 }
 
+/** Fraction of the tolerance width added outside each spec limit */
+export const SPEC_PADDING_FRACTION = 0.1;
+
 /**
- * Sign-aware padding for spec limits
- * Lower limit: expand outward by 10% (more negative if negative, less positive if positive)
- * Upper limit: expand outward by 10% (more positive if positive, less negative if negative)
+ * Padding applied outside the spec limits: 10% of the tolerance width.
+ * (Padding by 10% of each limit's absolute value breaks for offset processes:
+ * at μ = 250 it would add ±25 around a 0.08-wide tolerance.)
  */
-function padLower(lsl: number): number {
-  return lsl < 0 ? lsl * 1.1 : lsl * 0.9;
-}
-
-function padUpper(usl: number): number {
-  return usl < 0 ? usl * 0.9 : usl * 1.1;
+function specPadding(std: number, lsl: number, usl: number): number {
+  if (isFinite(lsl) && isFinite(usl) && usl > lsl) return SPEC_PADDING_FRACTION * (usl - lsl);
+  return SPEC_PADDING_FRACTION * 6 * std;
 }
 
 /**
- * Compute hybrid auto-viewport: wider of mean±6σ or padded spec limits
+ * Compute hybrid auto-viewport: wider of mean±6σ or the spec limits padded by
+ * 10% of the tolerance width
  */
 export function computeHybridViewport(
   mean: number,
@@ -42,12 +43,14 @@ export function computeHybridViewport(
   let specMin = meanMin;
   let specMax = meanMax;
 
+  const padding = specPadding(std, lsl, usl);
+
   if (isFinite(lsl)) {
-    specMin = padLower(lsl);
+    specMin = lsl - padding;
   }
 
   if (isFinite(usl)) {
-    specMax = padUpper(usl);
+    specMax = usl + padding;
   }
 
   // Take the wider range

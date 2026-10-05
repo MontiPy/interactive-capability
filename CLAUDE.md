@@ -32,7 +32,7 @@ The application uses a **tab-based navigation system** with two distinct modes:
 - Controls for μ, σ, LSL, USL
 - Import data affects primary distribution
 - Chart shows only the primary distribution
-- "Add to Comparison" button to create scenarios
+- "Save as Scenario for Comparison" button to create scenarios
 
 **Tab 2: Scenario Comparison** - Comparing multiple distributions
 - Full-view Scenario Manager with inline editing
@@ -43,20 +43,22 @@ The application uses a **tab-based navigation system** with two distinct modes:
 - Import data creates new scenarios
 
 ### Layout Structure
-The application uses a **two-column responsive layout** with a 40/60 split:
+The application uses a **fixed-width sidebar + fluid main area** (`Layout.tsx`, flexbox, no Grid):
 
 **Header:**
-- Title and Tab Navigation (on desktop)
-- PresetsMenu on the right
-- Mobile: Hamburger menu to open drawer
+- Logo mark, title (full title ≥ lg, hidden md–lg, short "Cp/Cpk Playground" on phones) and Tab Navigation (md+)
+- Undo / Redo / Reset / dark-mode toggle, then PresetsMenu (single tab)
+- Phones: a second sticky row holds the tabs (short labels) and a compact "Presets" button
 
-**Left Column (40% width - `lg={4.8}`):**
-Content changes based on active tab:
-- **Single Tab**: Distribution Controls, Spec Limit Controls, Display Controls, Import Data, Advanced Stats, Add to Comparison
-- **Comparison Tab**: Enhanced Scenario Manager (fullView mode), Add New Scenario, Import Data as Scenario, Advanced Stats
-- Vertical scrolling enabled when content overflows
+**Sidebar (340px md, 380px lg):**
+- Panel header row ("Process & Specs" / "Scenarios") with a collapse chevron; collapsing leaves a 48px rail with an expand button
+- **Single Tab**: Process Distribution, Specification Limits, Chart Display (collapsed by default), then a sticky footer with "Save as Scenario for Comparison" and "Import Measurement Data"
+- **Comparison Tab**: Scenario Manager (fullView) with a sticky footer: Add Blank Scenario, Preset, Import Data
+- Scrolls independently; footers are sticky only on md+
 
-**Right Column (60% width - `lg={7.2}`):**
+**Phones (< md):** no sidebar or drawer. The page scrolls: chart (fixed height), metrics, then the same controls inline.
+
+**Main area:**
 - Uses flexbox (`display: 'flex', flexDirection: 'column'`)
 - Chart container: `flex: '1 1 auto'` (grows to fill available space)
   - Filters scenarios based on activeTab
@@ -73,12 +75,19 @@ Content changes based on active tab:
 src/
 ├── main.tsx              →  React app entry point
 ├── App.tsx               →  Main layout with tab integration
-├── theme.ts              →  MUI theme configuration
+├── theme.ts              →  Light/dark MUI themes, chart colors, capability thresholds
 ├── types.ts              →  TypeScript type definitions (includes activeTab state)
 ├── context/
-│   └── AppContext.tsx    →  Global state management (Context + useReducer)
+│   ├── appReducer.ts     →  Pure reducer + undo/redo history (unit tested)
+│   ├── AppContext.tsx    →  Provider: initial load (session + URL), persistence, URL sync
+│   ├── ColorModeContext.tsx → Theme provider with light/dark toggle
+│   └── NotifyContext.tsx →  Toasts with optional Undo action
+├── hooks/
+│   ├── useCapabilitySubject.ts → Focused scenario or primary distribution being reported
+│   └── useKeyboardShortcuts.ts → Ctrl/⌘+Z undo, Ctrl/⌘+Shift+Z / Ctrl+Y redo
 ├── components/
 │   ├── TabNavigation.tsx           →  Tab navigation component
+│   ├── ParameterField.tsx          →  Shared slider + numeric input row
 │   ├── SingleDistributionPanel.tsx →  Single distribution tab content
 │   ├── ComparisonPanel.tsx         →  Scenario comparison tab content
 │   ├── ComparisonStatsTable.tsx    →  Multi-scenario comparison table
@@ -96,24 +105,32 @@ src/
 │   ├── ExportMenu.tsx
 │   └── Layout.tsx                  →  Main layout with responsive controls
 └── utils/
-    ├── stats.ts          →  Pure statistical functions
-    ├── goalSeek.ts       →  Goal seek algorithms for Cpk optimization (new)
+    ├── stats.ts          →  Pure statistical functions (capability, CIs, normality, parsing)
+    ├── goalSeek.ts       →  Goal seek algorithms for Cpk optimization
     ├── rendering.ts      →  Canvas rendering utilities
     ├── viewport.ts       →  Hybrid + multi-distribution viewport calculations
-    └── presets.ts        →  Preset configurations & URL state
+    ├── persistence.ts    →  localStorage session + share-link encode/decode (validated)
+    ├── exportData.ts     →  CSV / JSON export builders
+    ├── format.ts         →  Number formatting, nice steps, process-scaled slider ranges
+    ├── colors.ts         →  Scenario palette + next free color
+    └── presets.ts        →  Preset configurations
 ```
 
 ### Key Architectural Patterns
 
 - **Tab-Based Architecture**: Two distinct modes (Single Distribution and Scenario Comparison) with separate workflows and UI components.
 
-- **State Management**: Uses React Context + useReducer for global state. All state updates flow through typed actions in `AppContext.tsx`. New `activeTab` state controls which mode is active.
+- **State Management**: Uses React Context + useReducer for global state. All state updates flow through typed actions handled by `appReducer` in `context/appReducer.ts`. `historyReducer` wraps it with undo/redo: actions in the `UNDOABLE` set push a snapshot; repeated edits of the same field within 800 ms (and whole spec-limit drags) coalesce into one step. View settings (`display`) are not undoable and survive undo. Add any new data-changing action to `UNDOABLE`.
+
+- **Persistence**: `AppContext` loads defaults → saved session (localStorage) → URL params (a shared link wins). The session is saved (debounced) on every change, and the primary distribution is mirrored to the query string with `history.replaceState` (no history spam). Everything read back is validated in `persistence.ts`. The share link (`Export → Copy Share Link`) encodes scenarios as base64url JSON in `sc=`.
+
+- **Within vs overall σ**: With imported data, `std` is the within-subgroup σ (MR̄ / 1.128) used for Cp/Cpk, and `histogramData.overallStd` (sample σ) is used for Pp/Ppk. Imported scenarios carry `overallStd` and `sampleSize`. Without data, Pp/Ppk equal Cp/Cpk.
 
 - **Multi-Distribution Viewport**: `computeMultiDistributionViewport()` in `viewport.ts` calculates optimal viewport bounds across all visible scenarios in comparison mode.
 
 - **Pure Statistical Functions**: `stats.ts` contains all capability calculations (Cp, Cpk, Pp, Ppk, DPMO, Sigma Level, Cpm) as pure functions with no side effects.
 
-- **Canvas Rendering**: `Chart.tsx` manages a canvas with devicePixelRatio scaling. Rendering logic is isolated in `rendering.ts` for testability. Scenarios are filtered based on `activeTab`. Primary distribution (curve, mean line, sigma label) is conditionally rendered only in Single Distribution mode via `showPrimary` parameter. Shading is conditionally enabled only in Single Distribution mode. Legend dynamically shows only relevant distributions. Improved render cycle prevents artifacts and unnecessary re-renders. Edge-specific fix: Every render uses `canvas.width = canvas.width` reset technique within `requestAnimationFrame` to completely clear canvas state, ensuring Edge matches Chrome's rendering behavior.
+- **Canvas Rendering**: `Chart.tsx` manages a canvas with devicePixelRatio scaling, sized by a `ResizeObserver` (panel collapse resizes it too). Colors come from `getChartColors(mode)` so the chart follows dark mode; exports always use the light palette. Pointer events handle mouse and touch dragging; auto-range is paused during a drag so the line stays under the pointer. Rendering logic is isolated in `rendering.ts` for testability. Scenarios are filtered based on `activeTab`. Primary distribution (curve, mean line, sigma label) is conditionally rendered only in Single Distribution mode via `showPrimary` parameter. Shading is conditionally enabled only in Single Distribution mode. Legend dynamically shows only relevant distributions. Improved render cycle prevents artifacts and unnecessary re-renders. Edge-specific fix: Every render uses `canvas.width = canvas.width` reset technique within `requestAnimationFrame` to completely clear canvas state, ensuring Edge matches Chrome's rendering behavior.
 
 - **MUI Theme**: Custom theme in `theme.ts` preserves the original color palette (good/warn/bad for capability indices).
 
@@ -145,28 +162,27 @@ src/
   - Shows scenario names with color swatches in Scenario Comparison tab
   - Positioned top-right with semi-transparent backdrop
   - Avoids overlapping chart data
-- **Histogram overlay**: When data is imported, histogram bars render at 30% opacity grey to remain visible while not obscuring curves
+- **Histogram overlay**: When data is imported, histogram bars render as probability densities (count ÷ (n × bin width)) at 30% opacity, so they line up with the pdf. A dashed curve shows the overall-σ fit when it differs from the within-σ fit.
+- **Hover readout**: Crosshair with x, z-score and % below / above for the primary (or each visible scenario)
+- **Target marker**: Triangle on the axis when a Cpm target is set
 - **Explicit canvas clearing**: Prevents rendering artifacts when switching tabs or updating parameters
 - **Cross-browser compatibility**: Dedicated Edge fix using `canvas.width = canvas.width` reset technique to handle browser-specific canvas state caching
 - DevicePixelRatio scaling for crisp rendering
 
 ### 3. Collapsible Accordion Controls
-- **All left-panel sections** now use Material-UI Accordions (defaultExpanded on desktop)
-- **Tooltips**: Help icons (?) next to section titles and individual controls explaining:
-  - What each parameter controls
-  - Impact on capability metrics
-- **Enhanced inputs**:
-  - Numeric text fields with steppers synced to sliders
-  - Live validation with inline error messages
-  - Helper text showing step size (e.g., "step: 0.01")
-  - Clamping to safe ranges (-100 to 100 for mean, >0 for std, LSL < USL)
+- **Sidebar sections** use outlined MUI Accordions (styled globally in `theme.ts`)
+- **`ParameterField`** is the shared control row: label + help tooltip, then slider and numeric field (with a μ / σ / LSL / USL prefix)
+  - Slider ranges and steps scale with the process (`format.ts`)
+  - Typing commits valid values immediately; invalid input shows an inline error and reverts on blur
+  - σ > 0 and LSL < USL are enforced; sliders cannot cross the other limit
+- Spec section shows tolerance width and midpoint
 
 ### 4. Display Controls with Hybrid Auto-Viewport
 - **Auto Range toggle**: Automatically calculates optimal viewport using hybrid algorithm
-  - Formula: `displayMin = min(μ-6σ, padded_LSL)`, `displayMax = max(μ+6σ, padded_USL)`
-  - Sign-aware padding: expands outward 10% from spec limits (inward for opposite-sign limits)
+  - Formula: `displayMin = min(μ-6σ, LSL - pad)`, `displayMax = max(μ+6σ, USL + pad)` with `pad = 10% × (USL − LSL)`, also widened to include imported data min/max
+  - Tolerance-relative padding works for offset processes (e.g. μ = 250.02 with a 0.08 tolerance)
   - Applies on: parameter changes, preset load, data import, Reset Zoom
-  - Helper text: "Auto uses max(μ±6σ, LSL−10% / USL+10%)"
+  - Helper text: "Auto fits μ±6σ and the spec limits (+10% of the tolerance)"
 - **Manual override**: Disable auto-range to set custom min/max viewport
 - **Reset Zoom button**: Returns to hybrid auto-range mode
 - **Tick spacing**: Auto or manual step size for axis marks
@@ -182,17 +198,13 @@ src/
 - **State preservation**: All settings and scenarios persist when switching tabs
 
 ### 6. Data Import with Context-Aware Behavior
-- **Single Distribution Tab**:
-  - **Paste or upload** comma/newline-separated values
-  - **Preview panel** before import showing:
-    - Sample size (n), mean, std dev, min, max
-    - Count of ignored/invalid values
-  - **"Load Example Data" button** generates realistic normal data (n=100, μ=10, σ=2)
-  - Automatically calculates mean/std and overlays histogram on chart
-- **Scenario Comparison Tab**:
-  - Import creates a new scenario with calculated μ and σ
-  - Name field for scenario identification
-  - Auto-names to "Imported Scenario N" if blank
+- **Input**: paste, file picker, or drag-and-drop (comma / semicolon / whitespace / newline separated; headers counted as ignored tokens)
+- **Live preview**: n, mean, range, σ overall, σ within, Anderson–Darling p-value
+- **Warnings**: non-normal data (p < 0.05), overall σ ≫ within σ (drift or unordered data), mean outside the chosen spec limits
+- **Spec limits** fields (prefilled with the current limits) are applied with the import
+- **"Load example data"** generates n=100 from N(10, 2)
+- **Single Distribution Tab**: sets μ (mean), σ (within) and overlays the histogram
+- **Scenario Comparison Tab**: creates a new scenario (name field; defaults to "Imported Scenario N")
 
 ### 7. Scenario Comparison (Enhanced with Tab Integration)
 - **Add New Scenario**: Create scenarios directly in comparison tab with default parameters (μ=0, σ=1, LSL=-3, USL=3)
@@ -217,8 +229,9 @@ src/
 - **Focus control**: Radio button icon to drive main capability metrics display
   - Focused scenario's metrics shown in StatsDisplay with color chip indicator
   - Unfocused: primary distribution metrics shown (default)
-- **Actions**: Focus toggle, Visibility toggle (eye icon), Edit (in fullView), Duplicate, Delete
-- **Drag handle icon** for visual reorder affordance (drag functionality TBD)
+- **Actions**: Edit, Focus toggle and Visibility (eye icon) inline; Goal seek, Duplicate and Delete in a "More actions" (⋮) menu
+- Cp/Cpk chips are colour-coded; the focused card gets a primary-colour ring
+- **Move up / down** buttons reorder scenarios (undoable)
 - **Accordion with smart expand**: Collapses when empty, expands when scenarios exist (Single tab)
 - **Empty state**: Helpful message with "Add New Scenario" button and "Go to Single Distribution" option
 
@@ -236,8 +249,8 @@ src/
   - Displays centered mean with maximum achievable Cpk
   - Shows required parameters if target too high for current constraints
 - **Visual feedback**: Color-coded preview (green for success, red Alert for errors)
-- **Integration**: Calculator icon (⚙️) button on scenario cards in Comparison tab (fullView mode)
-  - Positioned between Edit and Focus buttons
+- **Integration**: "Goal seek…" in a scenario card's ⋮ menu (Comparison tab)
+- Preview shows before → after for the adjusted parameter and the achieved Cpk (colour-coded)
 - **Mathematical approach**: Closed-form analytical solutions (no iterative methods)
   - Fast execution (<1ms)
   - Deterministic results
@@ -258,7 +271,7 @@ src/
   - Active preset indicator (checkmark icon)
   - Preview chips showing Cp, Cpk, σ for each preset
   - Hover/active states for better interactivity
-- **Toast notification**: "Preset '{name}' loaded successfully" on selection
+- **Toast notification** with an Undo button on selection
 - 5 preset configurations: Six Sigma, Tight Tolerance, Off-Center, Minimum Capability, Wide Tolerance
 
 ### 11. Advanced Stats Dialog
@@ -268,21 +281,32 @@ src/
 - Improved descriptions focusing on actionable insights
 
 ### 12. Export Options (Enhanced)
-- **PNG**: High-resolution chart image (1200x600)
-- **CSV**: Spreadsheet-ready metrics (all Cp, Cpk, Pp, Ppk, DPMO, etc.)
-- **JSON**: Full configuration + metrics for all scenarios (timestamp, distribution params, computed stats)
-- Export FAB has tooltip: "Export chart/metrics"
+- **PNG**: 1200×600 at 2× scale, matching the active tab (light palette)
+- **CSV**: Metric/Value sheet (with CIs and normality when data is imported) in single mode; one row per scenario in comparison mode. Fields are RFC 4180-escaped and formula-neutralised.
+- **JSON**: Full configuration + metrics for primary, imported-data summary and all scenarios
+- **Copy Share Link**: URL reproducing the primary distribution and all scenarios
+- Export button sits next to the metrics (and on the comparison table)
 
 ### 13. Responsive Layout & Mobile Support
-- **Collapse left panel button** (chevron icon) for full-width chart mode on desktop
-- **Mobile drawer**: Left controls slide in from left on mobile/tablet
-  - Hamburger menu icon in header
-  - 85% screen width, max 400px
-  - Auto-closes after opening Import/Stats dialogs
-- **Expand button**: Floating button on left edge when panel collapsed
-- Fully responsive grid system maintains 40/60 split on desktop, full-width on mobile
+- **Collapse panel** (chevron in the sidebar header) for a full-width chart; a slim rail holds the expand button
+- **Phones**: controls render inline below the metrics (no hidden drawer); header and tabs stay sticky
+- Comparison table keeps the scenario name column sticky and lists capability columns first so they stay visible on narrow screens
 
-### 14. Accessibility Enhancements
+### 14. Capability Metrics Panel
+- Cards: Cp, Cpk (with 95% CIs when n is known), Pp/Ppk (when overall σ is known), Cpm (when a target is set), PPM out (↓ below · ↑ above), Yield
+- Verdict chip (Capable / Marginal / Not capable) and a one-line recommendation (re-centre vs reduce σ, with the required σ)
+- **Details** opens the Advanced Stats dialog for the focused scenario or primary: CPU/CPL, Pp/Ppk, PPM split, Z.bench, sigma level, Cpm target, imported-data diagnostics
+
+### 15. Notifications
+- `NotifyContext` provides `useNotify()` for app-wide toasts (bottom-centre)
+- Pass `{ undoable: true }` to add an **Undo** button (used for delete scenario, reset, preset load, save as scenario, import / remove data)
+
+### 16. Undo/Redo, Persistence, Dark Mode
+- Header buttons: Undo, Redo, Reset (undoable), light/dark toggle; keyboard shortcuts outside text fields
+- Session restored on reload; dark mode follows the OS until toggled (stored separately)
+- On phones the tabs move to a second header row with short labels ("Single" / "Compare")
+
+### 17. Accessibility Enhancements
 - **ARIA labels** on all interactive controls, including:
   - All help icon buttons with descriptive labels
   - Scenario action buttons (focus, visibility, duplicate, delete)
@@ -296,8 +320,13 @@ src/
 **Test Files:**
 - `src/utils/stats.test.ts` - Unit tests for all statistical functions using Vitest
   - Tests cover: basic calculations, edge cases (std=0, inverted limits), advanced metrics
+  - Far-tail accuracy, inverse normal, Z.bench/sigma level, moving-range σ, Cp/Cpk CIs, Anderson–Darling, histogram robustness, parsing
+- `src/context/appReducer.test.ts` - Reducer behaviour and undo/redo (coalescing, drags, redo stack, reset)
+- `src/utils/persistence.test.ts` - Session round-trip, validation of untrusted input, share-link round-trip
+- `src/utils/exportData.test.ts` - CSV escaping/injection, single vs comparison CSV, JSON
+- `src/utils/format.test.ts` - Percent/PPM formatting, nice steps, tick labels, slider ranges
 - `src/utils/viewport.test.ts` - Unit tests for viewport calculations
-  - Tests cover: sign-aware padding, edge cases, multipliers, asymmetric distributions
+  - Tests cover: tolerance-relative padding, offset processes, edge cases, multipliers, asymmetric distributions
   - Multi-distribution viewport tests (9 test cases)
     - Single scenario, overlapping ranges, distant ranges
     - Hidden scenarios, mixed distributions, wide spec limits
@@ -309,11 +338,11 @@ src/
 **Running Tests:**
 ```bash
 npm test                    # Watch mode
-npm test -- --run          # Single run
+npx vitest --run           # Single run
 npm test:ui                # Interactive UI
 ```
 
-All tests pass (66 tests total: 38 existing + 28 goal seek tests).
+All tests pass (128 tests).
 
 ## Development Workflow
 
@@ -328,8 +357,8 @@ All tests pass (66 tests total: 38 existing + 28 goal seek tests).
 ## CI/CD
 
 GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR:
-- Install dependencies
-- Run linter
+- Install dependencies (`npm ci` against the committed `package-lock.json`)
+- Run linter (blocking, `--max-warnings 0`)
 - Type check with TypeScript
 - Run tests
 - Build production bundle
@@ -344,6 +373,8 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR:
 - Fit-to-mean: disabled
 - Focused scenario: none (primary distribution drives metrics in single tab, comparison table in comparison tab)
 - Scenarios: empty array []
+- Color mode: OS preference
+- Session: restored from localStorage if present; URL parameters override
 
 ## Key Dependencies
 

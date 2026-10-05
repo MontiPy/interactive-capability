@@ -2,31 +2,29 @@
 
 A modern, interactive web application for exploring process capability (Cp/Cpk) calculations. Built with React, TypeScript, and Material-UI, featuring real-time statistical analysis, data import, and scenario comparison.
 
-![Process Capability Demo](screenshot.png)
-
 ## Features
 
-### Core Capabilities
-- **Real-time Statistical Analysis**: Calculate Cp, Cpk, Pp, Ppk, DPMO, Sigma Level, and Cpm (Taguchi index)
-- **Interactive Normal Distribution Chart**: Visualize your process with a canvas-based chart featuring:
-  - Draggable specification limits (LSL/USL)
-  - Shaded in-spec and out-of-spec regions
-  - Secondary sigma axis (±1σ to ±6σ markers)
-  - High-DPI rendering support
+### Analysis
+- **Capability indices**: Cp, Cpk, CPU, CPL, Pp, Ppk, Cpm (Taguchi), expected PPM (below / above / total), Z.bench and sigma level
+- **Tail-accurate math**: the normal CDF keeps relative precision far into the tails, so PPM for very capable processes (e.g. 0.002 ppm at Cp = 2) is correct
+- **Real data import** (paste, file upload, or drag-and-drop):
+  - Within-subgroup σ (moving range ÷ d2) drives Cp/Cpk; overall σ drives Pp/Ppk
+  - 95% confidence intervals for Cp and Cpk based on the sample size
+  - Anderson–Darling normality test with a warning when normal-based estimates may mislead
+  - Histogram overlay drawn as a true density, plus a dashed overall-σ curve
+  - Spec limits can be set at import time
+- **Actionable summary**: a capable / marginal / not-capable verdict and a one-line recommendation (re-centre vs. reduce variation)
+- **Goal seek**: find the μ or σ that reaches a target Cpk
 
-### Data Analysis
-- **Real Data Import**:
-  - Paste comma/newline-separated measurement values
-  - Upload CSV or text files
-  - Automatic histogram generation overlaid on theoretical distribution
-- **Multiple Scenario Comparison**: Compare up to 9 different distributions side-by-side
-- **Advanced Metrics**: View detailed capability metrics including process performance indices
-
-### Usability
-- **Preset Configurations**: Quickly load common scenarios (Six Sigma, Tight Tolerance, Off-Center, etc.)
-- **Export Capabilities**: Export charts as PNG (high-resolution)
-- **URL State Management**: Share configurations via URL parameters
-- **Responsive Design**: Two-column layout with controls on left and chart on right
+### Interaction
+- **Interactive chart**: drag LSL/USL with mouse or touch; hover for x, z-score and tail percentages
+- **Scenario comparison**: overlay many distributions, reorder them, edit inline, compare them in a table
+- **Undo / redo** (Ctrl/⌘+Z, Ctrl/⌘+Shift+Z) for every data change; slider drags collapse into a single step
+- **Session persistence**: work is saved in the browser and restored on reload
+- **Share links**: copy a URL that reproduces the primary distribution and all scenarios
+- **Exports**: PNG (2×), CSV (per-scenario in comparison mode), and JSON
+- **Dark mode**: follows the OS by default, with a manual toggle
+- **Responsive**: works on phones with touch dragging, compact tabs and a controls drawer
 
 ## Quick Start
 
@@ -61,48 +59,12 @@ The production build will be in the `dist/` directory.
 
 ## Usage
 
-### Basic Operation
-
-1. **Adjust Distribution Parameters**:
-   - Use sliders or input fields to set Mean (μ) and Standard Deviation (σ)
-   - Values update in real-time on the chart
-
-2. **Set Specification Limits**:
-   - Enter LSL (Lower Spec Limit) and USL (Upper Spec Limit)
-   - Or drag the red dashed lines directly on the chart
-
-3. **View Capability Metrics**:
-   - Cp and Cpk are color-coded (green ≥ 1.33, orange ≥ 1.0, red < 1.0)
-   - Click "View Advanced Stats" for Pp, Ppk, DPMO, and Sigma Level
-
-### Importing Real Data
-
-1. Click "Import Data" at the bottom of the page
-2. Choose either:
-   - **Paste Data**: Copy-paste your measurements
-   - **Upload File**: Select a CSV or text file
-3. The app will calculate mean/std and overlay a histogram on the chart
-
-### Comparing Scenarios
-
-1. Scroll to "Comparison Mode" section
-2. Click "Add Scenario"
-3. Configure the scenario's mean, std, LSL, and USL
-4. Toggle visibility using the eye icon
-5. Each scenario is rendered with a different color
-
-### Using Presets
-
-Click "Load Preset" in the top-right to quickly load common configurations:
-- **Six Sigma**: Centered process with Cp = 2.0
-- **Tight Tolerance**: Narrow spec limits
-- **Off-Center**: Process shifted off target
-- **Minimum Capability**: Barely capable (Cpk ≈ 1.0)
-- **Wide Tolerance**: Very capable process
-
-### Exporting Charts
-
-Click the floating download button (bottom-right) to export the chart as a high-resolution PNG image.
+1. **Model a process**: set μ and σ with the sliders or text fields. Slider ranges scale to your process, so μ = 250.02 mm with σ = 0.004 mm works as well as the default standard normal.
+2. **Set spec limits**: type LSL/USL, or drag the red dashed lines on the chart.
+3. **Read the metrics**: Cp/Cpk are colour-coded (green ≥ 1.33, amber ≥ 1.0, red < 1.0). Click **Details** for the full breakdown.
+4. **Import data**: click **Import Data** and paste values, choose a file, or drop a CSV/TXT file onto the dialog. Keep the values in production order, because the within-σ estimate uses consecutive differences.
+5. **Compare scenarios**: click **Add to Comparison**, or switch to the **Scenario Comparison** tab to add blank scenarios, presets or imported data. Click a table row to focus a scenario.
+6. **Share or export**: use **Export → Copy Share Link**, or export a PNG, CSV or JSON.
 
 ## Development
 
@@ -115,22 +77,32 @@ src/
 ├── theme.ts                    # MUI theme
 ├── types.ts                    # TypeScript definitions
 ├── context/
-│   └── AppContext.tsx          # State management
+│   ├── appReducer.ts           # Reducer + undo/redo history
+│   ├── AppContext.tsx          # Provider, persistence
+│   └── ColorModeContext.tsx    # Light/dark theme
 ├── components/                 # React components
 │   ├── Chart.tsx
 │   ├── DistributionControls.tsx
 │   ├── SpecLimitControls.tsx
 │   └── ...
 └── utils/
-    ├── stats.ts                # Statistical calculations
+    ├── stats.ts                # Capability math, normality test, confidence intervals
     ├── rendering.ts            # Canvas rendering
+    ├── viewport.ts             # Auto-range calculations
+    ├── goalSeek.ts             # Target-Cpk solver
+    ├── persistence.ts          # Session storage and share links
+    ├── exportData.ts           # CSV / JSON builders
+    ├── format.ts               # Number formatting and slider ranges
     └── presets.ts              # Preset configurations
 ```
 
 ### Testing
 
 ```bash
-# Run tests
+# Run tests once
+npx vitest --run
+
+# Watch mode
 npm test
 
 # Run tests with UI
@@ -160,8 +132,9 @@ npm run lint
   - Cpk = min[(USL - μ)/(3σ), (μ - LSL)/(3σ)]
   - Accounts for process mean relative to spec limits
 
-- **Pp / Ppk (Process Performance)**: Similar to Cp/Cpk but uses sample standard deviation
-  - Better for smaller sample sizes or unstable processes
+- **Pp / Ppk (Process Performance)**: Same formulas as Cp/Cpk, using the overall (long-term) sample σ
+  - With imported data, Cp/Cpk use the within-subgroup σ estimated as MR̄ / 1.128
+  - Ppk well below Cpk suggests shifts or drift over time
 
 - **Cpm (Taguchi Index)**: Considers deviation from target value
   - Cpm = (USL - LSL) / [6√(σ² + (μ - T)²)]
@@ -177,8 +150,15 @@ npm run lint
 
 ### Six Sigma Metrics
 
-- **DPMO (Defects Per Million Opportunities)**: Expected defect rate per million units
-- **Sigma Level**: Process capability expressed in sigma units (higher is better)
+- **DPMO / PPM**: Expected defect rate per million units, split by lower and upper tail
+- **Z.bench**: One-sided z-score with the same total defect rate
+- **Sigma Level**: z for a centred process with the same defect rate (no 1.5σ shift)
+
+### Confidence Intervals and Normality
+
+- **Cp CI**: chi-square method, Cp·√(χ²(α/2, n−1)/(n−1)) to Cp·√(χ²(1−α/2, n−1)/(n−1))
+- **Cpk CI**: Bissell's approximation, Cpk ± z·√(1/(9n) + Cpk²/(2(n−1)))
+- **Anderson–Darling**: A*² with D'Agostino & Stephens p-values. Below p = 0.05, normal-based estimates are flagged
 
 ## License
 
@@ -187,7 +167,7 @@ MIT License - see LICENSE file for details
 ## Acknowledgments
 
 - Statistical formulas based on standard SPC literature
-- Error function approximation from Abramowitz and Stegun
+- Complementary error function from Numerical Recipes (Chebyshev approximation); inverse normal from Acklam
 - UI design inspired by modern data visualization tools
 
 ## Support

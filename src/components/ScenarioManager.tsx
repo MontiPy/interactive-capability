@@ -17,6 +17,11 @@ import {
   Tooltip,
   Card,
   CardContent,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -25,7 +30,8 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   ContentCopy as DuplicateIcon,
-  DragIndicator as DragIcon,
+  KeyboardArrowUp as MoveUpIcon,
+  KeyboardArrowDown as MoveDownIcon,
   HelpOutline as HelpIcon,
   RadioButtonUnchecked as UnfocusedIcon,
   RadioButtonChecked as FocusedIcon,
@@ -33,22 +39,14 @@ import {
   Check as CheckIcon,
   Close as CloseIcon,
   Calculate as CalculateIcon,
+  MoreVert as MoreIcon,
 } from '@mui/icons-material';
 import GoalSeekDialog from './GoalSeekDialog';
 import { useApp } from '../context/AppContext';
+import { useNotify } from '../context/NotifyContext';
 import { computeStats } from '../utils/stats';
-
-const SCENARIO_COLORS = [
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#7f7f7f',
-  '#bcbd22',
-  '#17becf',
-];
+import { getCapabilityColor } from '../theme';
+import { formatValue } from '../utils/rendering';
 
 interface ScenarioManagerProps {
   fullView?: boolean;
@@ -56,8 +54,10 @@ interface ScenarioManagerProps {
 
 export default function ScenarioManager({ fullView = false }: ScenarioManagerProps) {
   const { state, dispatch } = useApp();
+  const notify = useNotify();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingScenarioId, setEditingScenarioId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ anchor: HTMLElement; id: string } | null>(null);
   const [editValues, setEditValues] = useState({
     name: '',
     mean: 0,
@@ -72,7 +72,9 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     usl: '0',
   });
   const [goalSeekDialogOpen, setGoalSeekDialogOpen] = useState(false);
-  const [goalSeekScenario, setGoalSeekScenario] = useState<typeof state.scenarios[0] | null>(null);
+  const [goalSeekScenario, setGoalSeekScenario] = useState<(typeof state.scenarios)[0] | null>(
+    null,
+  );
   const [newScenario, setNewScenario] = useState({
     name: '',
     mean: state.mean,
@@ -82,13 +84,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
   });
 
   const handleAddScenario = () => {
-    const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
     dispatch({
       type: 'ADD_SCENARIO',
       payload: {
         ...newScenario,
         name: newScenario.name || `Scenario ${state.scenarios.length + 1}`,
-        color: SCENARIO_COLORS[colorIndex],
         visible: true,
       },
     });
@@ -114,8 +114,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setDialogOpen(true);
   };
 
-  const handleDuplicateScenario = (scenario: typeof state.scenarios[0]) => {
-    const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
+  const handleDuplicateScenario = (scenario: (typeof state.scenarios)[0]) => {
     dispatch({
       type: 'ADD_SCENARIO',
       payload: {
@@ -124,13 +123,14 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
         std: scenario.std,
         lsl: scenario.lsl,
         usl: scenario.usl,
-        color: SCENARIO_COLORS[colorIndex],
+        overallStd: scenario.overallStd,
+        sampleSize: scenario.sampleSize,
         visible: true,
       },
     });
   };
 
-  const handleStartEdit = (scenario: typeof state.scenarios[0]) => {
+  const handleStartEdit = (scenario: (typeof state.scenarios)[0]) => {
     setEditingScenarioId(scenario.id);
     setEditValues({
       name: scenario.name,
@@ -164,12 +164,12 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setEditingScenarioId(null);
   };
 
-  const handleOpenGoalSeek = (scenario: typeof state.scenarios[0]) => {
+  const handleOpenGoalSeek = (scenario: (typeof state.scenarios)[0]) => {
     setGoalSeekScenario(scenario);
     setGoalSeekDialogOpen(true);
   };
 
-  const handleApplyGoalSeek = (updates: Partial<typeof state.scenarios[0]>) => {
+  const handleApplyGoalSeek = (updates: Partial<(typeof state.scenarios)[0]>) => {
     if (goalSeekScenario) {
       dispatch({
         type: 'UPDATE_SCENARIO',
@@ -186,31 +186,66 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     setGoalSeekScenario(null);
   };
 
-  const renderScenarioCard = (scenario: typeof state.scenarios[0]) => {
+  const renderScenarioCard = (scenario: (typeof state.scenarios)[0], index: number) => {
     const stats = computeStats(scenario.mean, scenario.std, scenario.lsl, scenario.usl);
     const isEditing = fullView && editingScenarioId === scenario.id;
-    const cardPadding = fullView ? 2 : 1.5;
+    const cardPadding = 1.5;
+    const isFocused = state.focusedScenarioId === scenario.id;
 
     return (
       <Card
         key={scenario.id}
         variant="outlined"
         sx={{
-          opacity: scenario.visible ? 1 : 0.5,
+          opacity: scenario.visible ? 1 : 0.55,
           borderLeft: `4px solid ${scenario.color}`,
-          transition: 'opacity 0.2s',
+          borderColor: isFocused ? 'primary.main' : undefined,
+          borderLeftColor: scenario.color,
+          boxShadow: isFocused ? (t) => `0 0 0 1px ${t.palette.primary.main}` : 'none',
+          transition: 'opacity 0.2s, box-shadow 0.2s',
+          '&:hover': { boxShadow: isFocused ? undefined : 'none' },
         }}
       >
         <CardContent sx={{ p: cardPadding, '&:last-child': { pb: cardPadding } }}>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-            <DragIcon
-              sx={{
-                color: 'text.secondary',
-                fontSize: 18,
-                mt: 0.5,
-                cursor: 'move',
-              }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'column', mt: -0.5 }}>
+              <Tooltip title="Move up" placement="left">
+                <span>
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.25 }}
+                    disabled={index === 0}
+                    onClick={() =>
+                      dispatch({
+                        type: 'MOVE_SCENARIO',
+                        payload: { id: scenario.id, direction: -1 },
+                      })
+                    }
+                    aria-label={`Move ${scenario.name} up`}
+                  >
+                    <MoveUpIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Move down" placement="left">
+                <span>
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.25 }}
+                    disabled={index === state.scenarios.length - 1}
+                    onClick={() =>
+                      dispatch({
+                        type: 'MOVE_SCENARIO',
+                        payload: { id: scenario.id, direction: 1 },
+                      })
+                    }
+                    aria-label={`Move ${scenario.name} down`}
+                  >
+                    <MoveDownIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               {isEditing ? (
                 <Stack spacing={1.5}>
@@ -235,7 +270,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                       }}
                       onBlur={(e) => {
                         if (!e.target.value.trim()) {
-                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          const scenario = state.scenarios.find((s) => s.id === editingScenarioId);
                           if (scenario) {
                             setEditInputs({ ...editInputs, mean: scenario.mean.toString() });
                             setEditValues({ ...editValues, mean: scenario.mean });
@@ -258,7 +293,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                       }}
                       onBlur={(e) => {
                         if (!e.target.value.trim()) {
-                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          const scenario = state.scenarios.find((s) => s.id === editingScenarioId);
                           if (scenario) {
                             setEditInputs({ ...editInputs, std: scenario.std.toString() });
                             setEditValues({ ...editValues, std: scenario.std });
@@ -284,7 +319,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                       }}
                       onBlur={(e) => {
                         if (!e.target.value.trim()) {
-                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          const scenario = state.scenarios.find((s) => s.id === editingScenarioId);
                           if (scenario) {
                             setEditInputs({ ...editInputs, lsl: scenario.lsl.toString() });
                             setEditValues({ ...editValues, lsl: scenario.lsl });
@@ -307,7 +342,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                       }}
                       onBlur={(e) => {
                         if (!e.target.value.trim()) {
-                          const scenario = state.scenarios.find(s => s.id === editingScenarioId);
+                          const scenario = state.scenarios.find((s) => s.id === editingScenarioId);
                           if (scenario) {
                             setEditInputs({ ...editInputs, usl: scenario.usl.toString() });
                             setEditValues({ ...editValues, usl: scenario.usl });
@@ -324,34 +359,50 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   <Typography variant="body1" fontWeight={600} noWrap>
                     {scenario.name}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    μ={scenario.mean.toFixed(2)}, σ={scenario.std.toFixed(2)}
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    μ {formatValue(scenario.mean)} · σ {formatValue(scenario.std)}
+                    {scenario.sampleSize ? ` · n=${scenario.sampleSize}` : ''}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" display="block">
-                    LSL={scenario.lsl.toFixed(2)}, USL={scenario.usl.toFixed(2)}
+                    Spec {formatValue(scenario.lsl)} – {formatValue(scenario.usl)}
                   </Typography>
                   {stats && (
-                    <Box sx={{ mt: 0.5 }}>
-                      <Chip
-                        label={`Cp: ${stats.cp.toFixed(2)}`}
-                        size="small"
-                        sx={{ fontSize: '0.7rem', height: 18, mr: 0.5 }}
-                      />
-                      <Chip
-                        label={`Cpk: ${stats.cpk.toFixed(2)}`}
-                        size="small"
-                        sx={{ fontSize: '0.7rem', height: 18 }}
-                      />
+                    <Box sx={{ mt: 0.75, display: 'flex', gap: 0.5 }}>
+                      {(
+                        [
+                          ['Cp', stats.cp],
+                          ['Cpk', stats.cpk],
+                        ] as const
+                      ).map(([label, v]) => (
+                        <Chip
+                          key={label}
+                          label={`${label} ${v.toFixed(2)}`}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            fontSize: '0.72rem',
+                            height: 20,
+                            fontWeight: 600,
+                            color: getCapabilityColor(v),
+                            borderColor: getCapabilityColor(v),
+                          }}
+                        />
+                      ))}
                     </Box>
                   )}
                 </>
               )}
             </Box>
-            <Stack direction="row" spacing={0.5}>
+            <Stack direction="row" spacing={0} sx={{ mr: -0.5, mt: -0.5 }}>
               {isEditing ? (
                 <>
                   <Tooltip title="Save">
-                    <IconButton size="small" onClick={handleSaveEdit} color="primary" aria-label="Save edits">
+                    <IconButton
+                      size="small"
+                      onClick={handleSaveEdit}
+                      color="primary"
+                      aria-label="Save edits"
+                    >
                       <CheckIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -365,23 +416,22 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                 <>
                   {fullView && (
                     <Tooltip title="Edit">
-                      <IconButton size="small" onClick={() => handleStartEdit(scenario)} aria-label="Edit scenario">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleStartEdit(scenario)}
+                        aria-label="Edit scenario"
+                      >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   )}
-                  {fullView && (
-                    <Tooltip title="Goal Seek">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenGoalSeek(scenario)}
-                        aria-label="Goal seek for target Cpk"
-                      >
-                        <CalculateIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  <Tooltip title={state.focusedScenarioId === scenario.id ? 'Focused (drives main metrics)' : 'Focus this scenario'}>
+                  <Tooltip
+                    title={
+                      state.focusedScenarioId === scenario.id
+                        ? 'Focused (drives main metrics)'
+                        : 'Focus this scenario'
+                    }
+                  >
                     <IconButton
                       size="small"
                       onClick={() =>
@@ -390,7 +440,11 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                           payload: state.focusedScenarioId === scenario.id ? null : scenario.id,
                         })
                       }
-                      aria-label={state.focusedScenarioId === scenario.id ? 'Unfocus scenario' : 'Focus scenario'}
+                      aria-label={
+                        state.focusedScenarioId === scenario.id
+                          ? 'Unfocus scenario'
+                          : 'Focus scenario'
+                      }
                       color={state.focusedScenarioId === scenario.id ? 'primary' : 'default'}
                     >
                       {state.focusedScenarioId === scenario.id ? (
@@ -403,32 +457,24 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
                   <Tooltip title={scenario.visible ? 'Hide' : 'Show'}>
                     <IconButton
                       size="small"
-                      onClick={() =>
-                        dispatch({ type: 'TOGGLE_SCENARIO', payload: scenario.id })
-                      }
+                      onClick={() => dispatch({ type: 'TOGGLE_SCENARIO', payload: scenario.id })}
                       aria-label={scenario.visible ? 'Hide scenario' : 'Show scenario'}
                     >
-                      {scenario.visible ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                      {scenario.visible ? (
+                        <VisibilityIcon fontSize="small" />
+                      ) : (
+                        <VisibilityOffIcon fontSize="small" />
+                      )}
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Duplicate">
+                  <Tooltip title="More actions">
                     <IconButton
                       size="small"
-                      onClick={() => handleDuplicateScenario(scenario)}
-                      aria-label="Duplicate scenario"
+                      onClick={(e) => setMenu({ anchor: e.currentTarget, id: scenario.id })}
+                      aria-label={`More actions for ${scenario.name}`}
+                      aria-haspopup="menu"
                     >
-                      <DuplicateIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Delete">
-                    <IconButton
-                      size="small"
-                      onClick={() =>
-                        dispatch({ type: 'DELETE_SCENARIO', payload: scenario.id })
-                      }
-                      aria-label="Delete scenario"
-                    >
-                      <DeleteIcon fontSize="small" />
+                      <MoreIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </>
@@ -440,8 +486,62 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
     );
   };
 
+  const menuScenario = menu ? state.scenarios.find((s) => s.id === menu.id) : undefined;
+  const actionsMenu = (
+    <Menu
+      anchorEl={menu?.anchor}
+      open={!!menuScenario}
+      onClose={() => setMenu(null)}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+    >
+      {menuScenario && [
+        <MenuItem
+          key="goal"
+          onClick={() => {
+            handleOpenGoalSeek(menuScenario);
+            setMenu(null);
+          }}
+        >
+          <ListItemIcon>
+            <CalculateIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Goal seek…" secondary="Find μ or σ for a target Cpk" />
+        </MenuItem>,
+        <MenuItem
+          key="dup"
+          onClick={() => {
+            handleDuplicateScenario(menuScenario);
+            setMenu(null);
+          }}
+        >
+          <ListItemIcon>
+            <DuplicateIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Duplicate" />
+        </MenuItem>,
+        <Divider key="div" />,
+        <MenuItem
+          key="del"
+          onClick={() => {
+            dispatch({ type: 'DELETE_SCENARIO', payload: menuScenario.id });
+            notify(`Deleted “${menuScenario.name}”`, 'info', { undoable: true });
+            setMenu(null);
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" color="error" />
+          </ListItemIcon>
+          <ListItemText primary="Delete" />
+        </MenuItem>,
+      ]}
+    </Menu>
+  );
+
   const scenarioList = (
-    <Stack spacing={fullView ? 2 : 1.5}>
+    <Stack spacing={1.25}>
+      {actionsMenu}
       {state.scenarios.map(renderScenarioCard)}
       {!fullView && (
         <Button
@@ -462,12 +562,7 @@ export default function ScenarioManager({ fullView = false }: ScenarioManagerPro
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         No scenarios yet. Add one to compare multiple distributions.
       </Typography>
-      <Button
-        variant="outlined"
-        startIcon={<AddIcon />}
-        onClick={handleOpenDialog}
-        fullWidth
-      >
+      <Button variant="outlined" startIcon={<AddIcon />} onClick={handleOpenDialog} fullWidth>
         Add Scenario
       </Button>
     </Box>

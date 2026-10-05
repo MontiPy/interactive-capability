@@ -20,23 +20,11 @@ interface PresetScenarioDialogProps {
   onClose: () => void;
 }
 
-const SCENARIO_COLORS = [
-  '#ff7f0e',
-  '#2ca02c',
-  '#d62728',
-  '#9467bd',
-  '#8c564b',
-  '#e377c2',
-  '#7f7f7f',
-  '#bcbd22',
-  '#17becf',
-];
 
 export default function PresetScenarioDialog({ open, onClose }: PresetScenarioDialogProps) {
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
 
   const handleSelectPreset = (preset: typeof presets[0]) => {
-    const colorIndex = state.scenarios.length % SCENARIO_COLORS.length;
 
     dispatch({
       type: 'ADD_SCENARIO',
@@ -46,7 +34,6 @@ export default function PresetScenarioDialog({ open, onClose }: PresetScenarioDi
         std: preset.state.std || 1,
         lsl: preset.state.lsl || -3,
         usl: preset.state.usl || 3,
-        color: SCENARIO_COLORS[colorIndex],
         visible: true,
       },
     });

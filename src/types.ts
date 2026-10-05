@@ -14,6 +14,11 @@ export interface AdvancedStatsResult {
   dpmo: number;
   sigmaLevel: number;
   cpm?: number;
+  cpu: number;
+  cpl: number;
+  ppmBelow: number;
+  ppmAbove: number;
+  zBench: number;
 }
 
 // Distribution scenario for comparison mode
@@ -26,14 +31,27 @@ export interface Scenario {
   usl: number;
   color: string;
   visible: boolean;
+  /** Overall (long-term) σ for Pp/Ppk when the scenario came from imported data */
+  overallStd?: number;
+  /** Sample size when the scenario came from imported data */
+  sampleSize?: number;
 }
 
 // Real data import
 export interface HistogramData {
   bins: { start: number; end: number; count: number }[];
   mean: number;
+  /** σ used for Cp/Cpk (within-subgroup estimate when available) */
   std: number;
   sampleSize: number;
+  /** Overall sample σ (n-1), used for Pp/Ppk */
+  overallStd?: number;
+  /** Within-subgroup σ from the average moving range (MR̄ / d2) */
+  withinStd?: number;
+  min?: number;
+  max?: number;
+  /** Anderson–Darling normality test */
+  normality?: { aSquared: number; pValue: number };
 }
 
 // Display settings
@@ -78,13 +96,13 @@ export type AppAction =
   | { type: 'SET_USL'; payload: number }
   | { type: 'SET_TARGET'; payload: number | undefined }
   | { type: 'UPDATE_DISPLAY'; payload: Partial<DisplaySettings> }
-  | { type: 'ADD_SCENARIO'; payload: Omit<Scenario, 'id'> }
+  | { type: 'ADD_SCENARIO'; payload: Omit<Scenario, 'id' | 'color'> & { color?: string } }
   | { type: 'UPDATE_SCENARIO'; payload: { id: string; updates: Partial<Scenario> } }
   | { type: 'DELETE_SCENARIO'; payload: string }
   | { type: 'TOGGLE_SCENARIO'; payload: string }
   | { type: 'SET_ACTIVE_SCENARIO'; payload: string | null }
   | { type: 'SET_FOCUSED_SCENARIO'; payload: string | null }
-  | { type: 'IMPORT_DATA'; payload: HistogramData }
+  | { type: 'IMPORT_DATA'; payload: HistogramData; specs?: { lsl: number; usl: number } }
   | { type: 'CLEAR_DATA' }
   | { type: 'SET_DRAGGING_LIMIT'; payload: 'lsl' | 'usl' | null }
   | { type: 'RESET_DISPLAY' }
@@ -92,8 +110,15 @@ export type AppAction =
   | { type: 'LOAD_FROM_URL'; payload: Partial<AppState> }
   | { type: 'SET_ACTIVE_TAB'; payload: 'single' | 'comparison' }
   | { type: 'ADD_CURRENT_AS_SCENARIO'; payload?: string }
-  | { type: 'IMPORT_DATA_AS_SCENARIO'; payload: { name: string; data: HistogramData } }
-  | { type: 'ADD_NEW_SCENARIO' };
+  | {
+      type: 'IMPORT_DATA_AS_SCENARIO';
+      payload: { name: string; data: HistogramData; lsl?: number; usl?: number };
+    }
+  | { type: 'ADD_NEW_SCENARIO' }
+  | { type: 'MOVE_SCENARIO'; payload: { id: string; direction: -1 | 1 } }
+  | { type: 'RESET_ALL' }
+  | { type: 'UNDO' }
+  | { type: 'REDO' };
 
 // Preset configuration
 export interface Preset {

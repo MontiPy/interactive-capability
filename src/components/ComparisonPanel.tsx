@@ -1,5 +1,11 @@
-import { Stack, Button, Typography, Box, Paper } from '@mui/material';
-import { ArrowForward as ArrowForwardIcon, Add as AddIcon, BookmarkBorder as PresetIcon } from '@mui/icons-material';
+import { Stack, Button, Typography, Box } from '@mui/material';
+import {
+  ArrowBack as ArrowBackIcon,
+  Add as AddIcon,
+  BookmarkBorder as PresetIcon,
+  UploadFile as ImportIcon,
+  CompareArrows as CompareIcon,
+} from '@mui/icons-material';
 import ScenarioManager from './ScenarioManager';
 import PresetScenarioDialog from './PresetScenarioDialog';
 import { useApp } from '../context/AppContext';
@@ -13,98 +19,94 @@ export default function ComparisonPanel({ onImportData }: ComparisonPanelProps) 
   const { state, dispatch } = useApp();
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
 
-  const handleGoToSingleTab = () => {
-    dispatch({ type: 'SET_ACTIVE_TAB', payload: 'single' });
-  };
+  const addBlank = () => dispatch({ type: 'ADD_NEW_SCENARIO' });
 
-  const handleAddNewScenario = () => {
-    dispatch({ type: 'ADD_NEW_SCENARIO' });
-  };
+  const secondaryActions = (
+    <Stack direction="row" spacing={1}>
+      <Button
+        variant="outlined"
+        fullWidth
+        startIcon={<PresetIcon />}
+        onClick={() => setPresetDialogOpen(true)}
+      >
+        Preset
+      </Button>
+      <Button variant="outlined" fullWidth startIcon={<ImportIcon />} onClick={onImportData}>
+        Import Data
+      </Button>
+    </Stack>
+  );
 
-  // Show empty state if no scenarios
+  const presetDialog = (
+    <PresetScenarioDialog open={presetDialogOpen} onClose={() => setPresetDialogOpen(false)} />
+  );
+
   if (state.scenarios.length === 0) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Paper elevation={0} sx={{ p: 4, bgcolor: 'action.hover' }}>
-          <Typography variant="h6" gutterBottom>
-            No scenarios yet
-          </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Create a new scenario to start comparing distributions.
-          </Typography>
-          <Stack spacing={2}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-              onClick={handleAddNewScenario}
-            >
-              Add Blank Scenario
-            </Button>
-            <Typography variant="caption" color="text.secondary">
-              or
-            </Typography>
-            <Button
-              variant="outlined"
-              endIcon={<ArrowForwardIcon />}
-              onClick={handleGoToSingleTab}
-            >
-              Go to Single Distribution
-            </Button>
-          </Stack>
-        </Paper>
+      <Box
+        sx={{
+          p: 3,
+          textAlign: 'center',
+          border: 1,
+          borderStyle: 'dashed',
+          borderColor: 'divider',
+          borderRadius: 3,
+        }}
+      >
+        <CompareIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+        <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+          No scenarios yet
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+          Compare process variants side by side, such as before vs. after an improvement or one
+          line against another.
+        </Typography>
+        <Stack spacing={1}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={addBlank}>
+            Add Blank Scenario
+          </Button>
+          {secondaryActions}
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'single' })}
+            sx={{ mt: 1 }}
+          >
+            Back to Single Distribution
+          </Button>
+        </Stack>
+        {presetDialog}
       </Box>
     );
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Scrollable scenario list */}
-      <Box sx={{ flex: 1, overflowY: 'auto', pb: 2 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      <Box sx={{ flex: 1, pb: 2 }}>
         <ScenarioManager fullView />
       </Box>
 
       {/* Sticky action buttons at bottom */}
       <Box
         sx={{
-          position: 'sticky',
+          position: { md: 'sticky' },
           bottom: 0,
-          backgroundColor: 'background.paper',
-          borderTop: '1px solid',
+          bgcolor: 'background.paper',
+          borderTop: 1,
           borderColor: 'divider',
-          pt: 2,
-          pb: 1,
+          pt: 1.5,
+          pb: 0.5,
           zIndex: 1,
         }}
       >
         <Stack spacing={1}>
-          <Button
-            variant="contained"
-            color="primary"
-            fullWidth
-            startIcon={<AddIcon />}
-            onClick={handleAddNewScenario}
-          >
+          <Button variant="contained" fullWidth startIcon={<AddIcon />} onClick={addBlank}>
             Add Blank Scenario
           </Button>
-          <Button
-            variant="outlined"
-            fullWidth
-            startIcon={<PresetIcon />}
-            onClick={() => setPresetDialogOpen(true)}
-          >
-            Load Preset as Scenario
-          </Button>
-          <Button variant="outlined" fullWidth onClick={onImportData}>
-            Import Data as Scenario
-          </Button>
+          {secondaryActions}
         </Stack>
       </Box>
 
-      <PresetScenarioDialog
-        open={presetDialogOpen}
-        onClose={() => setPresetDialogOpen(false)}
-      />
+      {presetDialog}
     </Box>
   );
 }

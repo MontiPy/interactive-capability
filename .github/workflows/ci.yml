@@ -25,13 +25,12 @@ jobs:
 
       - name: Run linter
         run: npm run lint
-        continue-on-error: true
 
       - name: Run type check
         run: npx tsc --noEmit
 
       - name: Run tests
-        run: npm test
+        run: npx vitest --run
 
       - name: Build production bundle
         run: npm run build
